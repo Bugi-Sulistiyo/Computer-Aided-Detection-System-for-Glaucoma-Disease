@@ -1,0 +1,5 @@
+# environtment handling
+python-dotenv==1.0.1
+
+# dataset downloader
+googledriver==0.1.7

@@ -1,1 +1,6 @@
+# directory
 reference_paper/
+data/
+
+# other files
+.env
