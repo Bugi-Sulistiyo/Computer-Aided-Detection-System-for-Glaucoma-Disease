@@ -4,8 +4,12 @@ python-dotenv==1.0.1
 # dataset downloader
 googledriver==0.1.7
 
-# data handling
+# data tabular handling
 pandas==2.2.2
+
+# data image handling
+numpy==2.0.0
+opencv-python==4.10.0.84
 
 # others
 ipykernel==6.29.4
