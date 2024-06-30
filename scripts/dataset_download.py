@@ -9,6 +9,8 @@ load_dotenv()
 
 # variables for dataset download
 dataset_link = os.environ.get("DATASET_GDRIVE_LINK")
-folder_storage = "./data/"
+folder_storage = "./dataset/"
 
 download_folder(dataset_link, folder_storage)
+
+print("completed download dataset.")
