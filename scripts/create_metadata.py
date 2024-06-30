@@ -42,15 +42,18 @@ for index, label in enumerate(os.listdir(data_path)):
             gender = "unknown"
         
         for file_name in os.listdir(path_patient):
+            if (file_name[-3:] != "jpg") and (file_name[-3:] != "png") and (file_name[-3:] != "peg"):
+                continue
+
             final_path = os.path.join(path_patient, file_name)
 
             ### get patient eye side
             if re.search("od", file_name.lower()) != None:
-                eye_side = "r"
+                eye_side = "r" # for right eye OD == right
             elif re.search("os", file_name.lower()) != None:
-                eye_side = "l"
+                eye_side = "l" # for left eye OS == left
             else:
-                eye_side = "unknown"
+                eye_side = "u" # for others (expected: for oct images)
             ### get image type
             img = cv2.imread(final_path)
             white_px = np.sum(img == 255)
