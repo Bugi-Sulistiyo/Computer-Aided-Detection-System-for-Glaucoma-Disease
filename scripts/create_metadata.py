@@ -46,9 +46,9 @@ for index, label in enumerate(os.listdir(data_path)):
 
             ### get patient eye side
             if re.search("od", file_name.lower()) != None:
-                eye_side = "right"
+                eye_side = "r"
             elif re.search("os", file_name.lower()) != None:
-                eye_side = "left"
+                eye_side = "l"
             else:
                 eye_side = "unknown"
             ### get image type
