@@ -11,7 +11,7 @@ import cv2
 metadata = pd.DataFrame(columns=["label", "patient", "id", "gender",
                                 "img_type", "eye_side", "path"])
 labels = ["glaucoma", "non_glaucoma"]
-data_path = "./dataset/"
+data_path = "dataset/"
 
 # create the metadata
 for index, label in enumerate(os.listdir(data_path)):
