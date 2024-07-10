@@ -18,8 +18,9 @@ for index, label in enumerate(os.listdir(data_path)):
     path_label = os.path.join(data_path, label)
 
     ## rename label folder
-    os.rename(path_label,
-            os.path.join(data_path, labels[index]))
+    if path_label != os.path.join(data_path, labels[index]):
+        os.rename(path_label,
+                os.path.join(data_path, labels[index]))
     
     for patient in os.listdir(os.path.join(data_path,
                                             labels[index])):
