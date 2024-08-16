@@ -1,10 +1,11 @@
 # import packages
+## package for handling file
 import os
 import re
-
+## package for handling data
 import pandas as pd
 import numpy as np
-
+## package for handling image
 import cv2
 
 # create global variables
@@ -42,6 +43,7 @@ for index, label in enumerate(os.listdir(data_path)):
         else:
             gender = "unknown"
         
+        ### filter the image files
         for file_name in os.listdir(path_patient):
             if (file_name[-3:] != "jpg") and (file_name[-3:] != "png") and (file_name[-3:] != "peg"):
                 continue
