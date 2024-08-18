@@ -3,6 +3,7 @@ reference_paper/
 dataset/
 dataset_processed/
 dataset_used/
+dataset_used_split/
 data/
 
 # other files
