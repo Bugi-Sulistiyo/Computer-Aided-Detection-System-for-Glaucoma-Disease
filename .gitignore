@@ -4,6 +4,7 @@ dataset/
 dataset_processed/
 dataset_used/
 dataset_used_split/
+dataset_used_split_v2/
 data/
 
 # other files
