@@ -40,14 +40,14 @@ def load_image(img_path:str, mask_path:str, img_size:int=128):
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
     mask = tf.image.resize(mask, (img_size, img_size))
-    mask = tf.cast(mask, tf.uint8)
+    mask = tf.cast(mask, tf.float32) / 255.0
 
     return img, mask
 
 def create_dataset(img_paths:list, mask_paths:list, batch_size:int=32):
     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
-    dataset = dataset.batch(batch_size).prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.batch(batch_size)
     return dataset
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[64, 128, 256]):
