@@ -2,6 +2,8 @@ import os
 import tensorflow as tf
 from tensorflow.keras import layers, models
 
+tf.keras.backend.clear_session()
+
 def load_data(img_dir:str, mask_dir:str, img_size:int=128, batch_size:int=32):
     """load images and masks from a directory
 
@@ -57,7 +59,8 @@ def normalize(img:tf.Tensor, mask:tf.Tensor):
         tf.Tensor: normalized image and mask
     """
     img = tf.cast(img, tf.float32) / 255.0
-    mask = tf.cast(mask, tf.float32) / 255.0
+    # mask = tf.cast(mask, tf.float32) / 255.0
+    mask = tf.cast(mask, tf.int32)
     return img, mask
 
 def prepare_data(img_dir:str, mask_dir:str, img_size:int=128, batch_size:int=32, seed:int=55):
@@ -78,55 +81,55 @@ def prepare_data(img_dir:str, mask_dir:str, img_size:int=128, batch_size:int=32,
     dataset = dataset.map(normalize, num_parallel_calls=tf.data.AUTOTUNE)
     return dataset.prefetch(tf.data.AUTOTUNE)
 
-# def load_img_mask(dir_path:str):
-#     """load images and masks from a directory (train/val/test)
+def load_img_mask(dir_path:str):
+    """load images and masks from a directory (train/val/test)
 
-#     Args:
-#         dir_path (str): a directory path where images and masks are stored
+    Args:
+        dir_path (str): a directory path where images and masks are stored
 
-#     Returns:
-#         list: a list of fundus images and masks path
-#     """
-#     path_imgs = []
-#     path_masks = []
+    Returns:
+        list: a list of fundus images and masks path
+    """
+    path_imgs = []
+    path_masks = []
 
-#     for filename in os.listdir(dir_path):
-#         if filename.endswith(".jpg"):
-#             path_imgs.append(os.path.join(dir_path, filename))
-#         elif filename.endswith("_mask.png"):
-#             path_masks.append(os.path.join(dir_path, filename))
-#     return path_imgs, path_masks
+    for filename in os.listdir(dir_path):
+        if filename.endswith(".jpg"):
+            path_imgs.append(os.path.join(dir_path, filename))
+        elif filename.endswith("_mask.png"):
+            path_masks.append(os.path.join(dir_path, filename))
+    return path_imgs, path_masks
 
-# def load_image(img_path:str, mask_path:str, img_size:int=128):
-#     """load and preprocess image and mask
+def load_image(img_path:str, mask_path:str, img_size:int=128):
+    """load and preprocess image and mask
 
-#     Args:
-#         img_path (str): the path of the image
-#         mask_path (str): the path of the mask
-#         img_size (int, optional): the resolution of img 1:1. Defaults to 128.
+    Args:
+        img_path (str): the path of the image
+        mask_path (str): the path of the mask
+        img_size (int, optional): the resolution of img 1:1. Defaults to 128.
 
-#     Returns:
-#         tf.Tensor: image and mask
-#     """
-#     img = tf.io.read_file(img_path)
-#     img = tf.image.decode_jpeg(img, channels=3)
-#     img = tf.image.resize(img, (img_size, img_size))
-#     img = tf.cast(img, tf.float32) / 255.0
+    Returns:
+        tf.Tensor: image and mask
+    """
+    img = tf.io.read_file(img_path)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.image.resize(img, (img_size, img_size))
+    img = tf.cast(img, tf.float32) / 255.0
 
-#     mask = tf.io.read_file(mask_path)
-#     mask = tf.image.decode_png(mask, channels=1)
-#     mask = tf.image.resize(mask, (img_size, img_size))
-#     mask = tf.cast(mask, tf.float32) / 255.0
+    mask = tf.io.read_file(mask_path)
+    mask = tf.image.decode_png(mask, channels=1)
+    mask = tf.image.resize(mask, (img_size, img_size))
+    mask = tf.cast(mask, tf.uint8)
 
-#     return img, mask
+    return img, mask
 
-# def create_dataset(img_paths:list, mask_paths:list, batch_size:int=32):
-#     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
-#     dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
-#     dataset = dataset.batch(batch_size)
-#     return dataset
+def create_dataset(img_paths:list, mask_paths:list, batch_size:int=32):
+    dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
+    dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.batch(batch_size)
+    return dataset
 
-def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[64, 128, 256]):
+def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
     inputs = layers.Input(shape=input_shape)
 
     # Encoder: Down-sampling
@@ -176,5 +179,5 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
 
     # Output
-    outputs = layers.Conv2D(num_classes, 1, activation='softmax')(cv5)
+    outputs = layers.Conv2D(num_classes, (1,1), activation='softmax')(cv5)
     return models.Model(inputs, outputs)
