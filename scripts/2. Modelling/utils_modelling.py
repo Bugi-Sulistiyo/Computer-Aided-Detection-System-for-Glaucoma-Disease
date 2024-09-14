@@ -23,6 +23,11 @@ def load_img_mask(dir_path:str):
             path_masks.append(os.path.join(dir_path, filename))
     return path_imgs, path_masks
 
+def remap_mask(mask):
+    mask = tf.where(mask == 64, 1, mask)
+    mask = tf.where(mask ==255, 2, mask)
+    return mask
+
 def load_image(img_path, mask_path, img_size:int=128):
     """load and preprocess image and mask
 
@@ -36,19 +41,20 @@ def load_image(img_path, mask_path, img_size:int=128):
     """
     img = tf.io.read_file(img_path)
     img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, (img_size, img_size))
+    img = tf.image.resize(img, (img_size, img_size), method='nearest')
     img = tf.cast(img, tf.float32) / 255.0
 
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.image.resize(mask, (img_size, img_size))
+    mask = tf.image.resize(mask, (img_size, img_size), method='nearest')
     mask = tf.cast(mask, tf.int32)
+    mask = remap_mask(mask)
 
     return img, mask
 
 def create_dataset(img_paths:list, mask_paths:list, batch_size:int=16):
     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
-    dataset = dataset.map(lambda img, mask: load_image(img, mask), num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
     dataset = dataset.batch(batch_size)
     return dataset
 
