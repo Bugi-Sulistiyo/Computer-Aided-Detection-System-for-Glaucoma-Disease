@@ -1,6 +1,7 @@
 import os
 import tensorflow as tf
 from tensorflow.keras import layers, models
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
 
 tf.keras.backend.clear_session()
 
@@ -63,67 +64,33 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     x = input_layer
     skips = []
 
+    # Encoder
     for filter in filters[:-1]:
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         skips.append(x) 
         x = layers.MaxPool2D((2,2))(x)
 
+    # Bottleneck
     x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
     x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
 
+    # Decoder
     for filter, skip in zip(reversed(filters[:-1]), reversed(skips)):
         x = layers.UpSampling2D((2,2))(x)
         x = layers.Concatenate()([x, skip])
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
 
-    # # Encoder: Down-sampling
-    # cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(inputs)
-    # cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv1)
-    # mp1 = layers.MaxPool2D((2,2))(cv1)
-
-    # cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(mp1)
-    # cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv2)
-    # mp2 = layers.MaxPool2D((2,2))(cv2)
-
-    # cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(mp2)
-    # cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(cv3)
-
-    # # Decoder: Up-sampling
-    # up1 = layers.UpSampling2D((2,2))(cv3)
-    # up1 = layers.Concatenate()([up1, cv2])
-    # cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(up1)
-    # cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv4)
-
-    # up2 = layers.UpSampling2D((2,2))(cv4)
-    # up2 = layers.Concatenate()([up2, cv1])
-    # cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(up2)
-    # cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv5)
-
-    # x = inputs
-
-    # # Encoder
-    # skips = []
-    # for filter in filters[:-1]:
-    #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
-    #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
-    #     skips.append(x)
-    #     x = layers.MaxPool2D()(x)
-
-    # # Bottleneck
-    # x = layers.Conv2D(filters[-1], 3, padding='same', activation='relu')(x)
-    # x = layers.Conv2D(filters[-1], 3, padding='same', activation='relu')(x)
-
-    # # Decoder
-    # filters = sorted(filters[:-1], reverse=True)
-    # skips = skips[::-1]
-    # for i, filter in enumerate(filters[:-1]):
-    #     x = layers.UpSampling2D()(x)
-    #     x = layers.Concatenate()([x, skips[i]])
-    #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
-    #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
-
     # Output
     output_layer = layers.Conv2D(num_classes, (1,1), activation='softmax')(x)
     return models.Model(input_layer, output_layer)
+
+def train_model(model:tf.keras.Model,
+                trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
+                file_name:str, epochs:int=10):
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=[SparseCategoricalAccuracy()])
+    model.fit(trainset, validation_data=valset, epochs=epochs, verbose=0)
+    model.save(f"./../../data/model/{file_name}.h5")
+    loss, acc = model.evaluate(testset, verbose=0)
+    return model, loss, acc
