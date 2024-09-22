@@ -2,8 +2,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras import layers, models
-from tensorflow.keras.metrics import Accuracy, SparseCategoricalAccuracy, MeanIoU
-from tensorflow_addons.metrics import F1Score
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
 
 tf.keras.backend.clear_session()
 
@@ -70,9 +69,9 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     for filter in filters[:-1]:
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
-        skips.append(x)
+        skips.append(x) 
         x = layers.MaxPool2D((2,2))(x)
-    
+
     # Bottleneck
     x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
     x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
@@ -83,25 +82,19 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
         x = layers.Concatenate()([x, skip])
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
-    
+
     # Output
     output_layer = layers.Conv2D(num_classes, (1,1), activation='softmax')(x)
-
     return models.Model(input_layer, output_layer)
 
-def train_model(model:tf.keras.Model, trainset, valset, file_name:str, epochs:int=10):
-    model.compile(optimizer='adam',
-                    loss='sparse_categorical_crossentropy',
-                    metrics=[
-                            Accuracy(name='acc'),
-                            # SparseCategoricalAccuracy(name='px_acc'),
-                            # MeanIoU(num_classes=3, name='iou'),
-                            # F1Score(num_classes=3, name='f1')
-                            ]
-                            )
+def train_model(model:tf.keras.Model,
+                trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
+                file_name:str, epochs:int=10):
+    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=[SparseCategoricalAccuracy()])
     model.fit(trainset, validation_data=valset, epochs=epochs, verbose=0)
     model.save(f"./../../data/model/{file_name}.h5")
-    return model
+    loss, acc = model.evaluate(testset, verbose=0)
+    return model, loss, acc
 
 def get_bounding_box(mask:np.array):
     """get the bounding box of the mask
