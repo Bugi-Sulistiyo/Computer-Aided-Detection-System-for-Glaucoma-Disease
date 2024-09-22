@@ -59,30 +59,47 @@ def create_dataset(img_paths:list, mask_paths:list, batch_size:int=16):
     return dataset
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
-    inputs = layers.Input(shape=input_shape)
+    input_layer = layers.Input(shape=input_shape)
+    x = input_layer
+    skips = []
 
-    # Encoder: Down-sampling
-    cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(inputs)
-    cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv1)
-    mp1 = layers.MaxPool2D((2,2))(cv1)
+    for filter in filters[:-1]:
+        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        skips.append(x) 
+        x = layers.MaxPool2D((2,2))(x)
 
-    cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(mp1)
-    cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv2)
-    mp2 = layers.MaxPool2D((2,2))(cv2)
+    x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
+    x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
 
-    cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(mp2)
-    cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(cv3)
+    for filter, skip in zip(reversed(filters[:-1]), reversed(skips)):
+        x = layers.UpSampling2D((2,2))(x)
+        x = layers.Concatenate()([x, skip])
+        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
 
-    # Decoder: Up-sampling
-    up1 = layers.UpSampling2D((2,2))(cv3)
-    up1 = layers.Concatenate()([up1, cv2])
-    cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(up1)
-    cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv4)
+    # # Encoder: Down-sampling
+    # cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(inputs)
+    # cv1 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv1)
+    # mp1 = layers.MaxPool2D((2,2))(cv1)
 
-    up2 = layers.UpSampling2D((2,2))(cv4)
-    up2 = layers.Concatenate()([up2, cv1])
-    cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(up2)
-    cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv5)
+    # cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(mp1)
+    # cv2 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv2)
+    # mp2 = layers.MaxPool2D((2,2))(cv2)
+
+    # cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(mp2)
+    # cv3 = layers.Conv2D(filters[2], (3,3), padding='same', activation='relu')(cv3)
+
+    # # Decoder: Up-sampling
+    # up1 = layers.UpSampling2D((2,2))(cv3)
+    # up1 = layers.Concatenate()([up1, cv2])
+    # cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(up1)
+    # cv4 = layers.Conv2D(filters[1], (3,3), padding='same', activation='relu')(cv4)
+
+    # up2 = layers.UpSampling2D((2,2))(cv4)
+    # up2 = layers.Concatenate()([up2, cv1])
+    # cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(up2)
+    # cv5 = layers.Conv2D(filters[0], (3,3), padding='same', activation='relu')(cv5)
 
     # x = inputs
 
@@ -108,5 +125,5 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     #     x = layers.Conv2D(filter, 3, padding='same', activation='relu')(x)
 
     # Output
-    outputs = layers.Conv2D(num_classes, (1,1), activation='softmax')(cv5)
-    return models.Model(inputs, outputs)
+    output_layer = layers.Conv2D(num_classes, (1,1), activation='softmax')(x)
+    return models.Model(input_layer, output_layer)
