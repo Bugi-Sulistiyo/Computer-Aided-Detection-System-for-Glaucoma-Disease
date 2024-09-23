@@ -166,7 +166,7 @@ def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
         bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
 
     Returns:
-        tf.Tensor: the predicted mask from the model
+        tf.Tensor, tf.keras.Model: the predicted mask from the model, the model
     """
     # load the saved model
     model = load_model(f"./../../../data/model/{file_name}.h5")
@@ -176,7 +176,7 @@ def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
             # predict the masks from the given images
             pred_mask = model.predict(images)
             break
-    return pred_mask
+    return pred_mask, model
 
 def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
     """split the disc and cup section from the predicted mask
@@ -213,6 +213,30 @@ def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
     plt.show()
 
     return cup_mask, disc_mask, binary_cup_mask, binary_disc_mask
+
+def visualize_pred_mask(testset:tf.data.Dataset, model:tf.keras.Model, img_shown:int=4):
+    """visualize the predicted mask from the model result
+
+    Args:
+        testset (tf.data.Dataset): the dataset used to test the model
+        model (tf.keras.Model): the model to be tested
+        img_shown (int, optional): number of image to be shown. Defaults to 4.
+    """
+    for image, mask in testset.take(1):
+        pred = model.predict(image, verbose=0)
+        for index in range(img_shown):
+            plt.subplot(3, img_shown, index+1)
+            plt.imshow(image[index])
+            plt.axis("off")
+
+            plt.subplot(3, img_shown, index+(1+img_shown))
+            plt.imshow(mask[index], cmap="gray")
+            plt.axis("off")
+
+            plt.subplot(3, img_shown, index+(1+img_shown*2))
+            plt.imshow(pred[index], cmap="gray")
+            plt.axis("off")
+        break
 
 def get_bounding_box(mask:np.array):
     """get the bounding box of the mask
