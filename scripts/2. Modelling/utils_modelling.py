@@ -258,3 +258,63 @@ def get_bounding_box(mask:np.array):
     width = xmax - xmin + 1
 
     return ymin, ymax, xmin, xmax, height, width
+
+def visualize_bounding_box(label:str, mask:np.array, bmask:np.array, ymin:int, ymax:int, xmin:int, xmax:int):
+    plt.subplot(1, 2, 1)
+    plt.imshow(mask, cmap="gray")
+    plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, edgecolor='r', facecolor='none'))
+    plt.text(xmin, ymin, label, color='r')
+    plt.title("Original Mask")
+    plt.axis("off")
+
+    plt.subplot(1, 2, 2)
+    plt.imshow(bmask, cmap="gray")
+    plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, edgecolor='r', facecolor='none'))
+    plt.text(xmin, ymin, label, color='r')
+    plt.title("Binary Mask")
+    plt.axis("off")
+    plt.show()
+
+def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array, bdisc_mask:np.array):
+    """calculate the area of cup and disc and the CDR
+
+    Args:
+        bcup_mask (np.array): the mask of the cup. should be in binary
+        bdisc_mask (np.array): the mask of the disc. should be in binary
+
+    Returns:
+        tuple: the area of cup, the area of disc, the CDR
+    """
+    # count the area CDR
+    cup_area = np.sum(bcup_mask)
+    disc_area = np.sum(bdisc_mask)
+    acdr = cup_area / disc_area
+
+    d_ymin, d_ymax, d_xmin, d_xmax, d_height, d_width = get_bounding_box(bdisc_mask)
+    c_ymin, c_ymax, c_xmin, c_xmax, c_height, c_width = get_bounding_box(bcup_mask)
+
+    # count the horizontal CDR
+    h_cdr = c_width / d_width
+    # count the vertical CDR
+    v_cdr = c_height / d_height
+
+    visualize_bounding_box("Disc", disc_mask, bdisc_mask, d_ymin, d_ymax, d_xmin, d_xmax)
+    visualize_bounding_box("Cup", cup_mask, bcup_mask, c_ymin, c_ymax, c_xmin, c_xmax)
+
+    return [{"cup_area": cup_area,
+            "disc_area": disc_area,
+            "acdr": acdr,
+            "h_cdr": h_cdr,
+            "v_cdr": v_cdr},
+            {"d_ymin": d_ymin,
+            "d_ymax": d_ymax,
+            "d_xmin": d_xmin,
+            "d_xmax": d_xmax,
+            "d_height": d_height,
+            "d_width": d_width,
+            "c_ymin": c_ymin,
+            "c_ymax": c_ymax,
+            "c_xmin": c_xmin,
+            "c_xmax": c_xmax,
+            "c_height": c_height,
+            "c_width": c_width}]
