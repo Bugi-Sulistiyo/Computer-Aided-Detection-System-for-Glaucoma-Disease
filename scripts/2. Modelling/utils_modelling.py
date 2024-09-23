@@ -1,8 +1,11 @@
 import os
 import numpy as np
+import matplotlib.pyplot as plt
+
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
+from tensorflow.keras.models import load_model
 
 tf.keras.backend.clear_session()
 
@@ -15,22 +18,34 @@ def load_img_mask(dir_path:str):
     Returns:
         list: a list of fundus images and masks path
     """
+    # an empty list to store the path of images and masks
     path_imgs = []
     path_masks = []
 
+    # iterate over the files in the directory
     for filename in os.listdir(dir_path):
+        # getting the image that ends with .jpg
         if filename.endswith(".jpg"):
             path_imgs.append(os.path.join(dir_path, filename))
+        # getting the mask that ends with _mask.png
         elif filename.endswith("_mask.png"):
             path_masks.append(os.path.join(dir_path, filename))
     return path_imgs, path_masks
 
-def remap_mask(mask):
+def remap_mask(mask:tf.Tensor):
+    """remap the mask values to 0, 1, 2 (background, cup, disc)
+
+    Args:
+        mask (tf.Tensor): the mask of the image
+
+    Returns:
+        tf.Tensor: remapped mask
+    """
     mask = tf.where(mask == 64, 1, mask)
     mask = tf.where(mask ==255, 2, mask)
     return mask
 
-def load_image(img_path, mask_path, img_size:int=128):
+def load_image(img_path:str, mask_path:str, img_size:int=128):
     """load and preprocess image and mask
 
     Args:
@@ -41,31 +56,58 @@ def load_image(img_path, mask_path, img_size:int=128):
     Returns:
         tf.Tensor: image and mask
     """
+    # import and standardize the image
     img = tf.io.read_file(img_path)
     img = tf.image.decode_jpeg(img, channels=3)
     img = tf.image.resize(img, (img_size, img_size), method='nearest')
     img = tf.cast(img, tf.float32) / 255.0
 
+    # import and standardize the mask
     mask = tf.io.read_file(mask_path)
     mask = tf.image.decode_png(mask, channels=1)
     mask = tf.image.resize(mask, (img_size, img_size), method='nearest')
     mask = tf.cast(mask, tf.int32)
+    # change the mask value into an integer
     mask = remap_mask(mask)
 
     return img, mask
 
 def create_dataset(img_paths:list, mask_paths:list, batch_size:int=16):
+    """create a tf.data.Dataset from image and mask paths
+
+    Args:
+        img_paths (list): a list of image paths
+        mask_paths (list): a list of mask paths
+        batch_size (int, optional): the size of batches. Defaults to 16.
+
+    Returns:
+        tf.data.Dataset: the batched dataset
+    """
+    # create a dataset from the image and mask paths
     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
+    # standardize the image and mask
     dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
+    # shuffle the dataset into a random order and make it a batch
     dataset = dataset.batch(batch_size)
     return dataset
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
+    """create a custom unet model dynamicly
+
+    Args:
+        input_shape (tuple, optional): the image shape inputed to the model. Defaults to (128, 128, 3).
+        num_classes (int, optional): number of classes (background, cup, disc). Defaults to 3.
+        filters (list, optional): the filter used in the model structure. Defaults to [16, 32, 64].
+
+    Returns:
+        tf.keras.Model: the unet model
+    """
+    # input layer of the model
     input_layer = layers.Input(shape=input_shape)
     x = input_layer
     skips = []
 
-    # Encoder
+    # Encoder 
     for filter in filters[:-1]:
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
@@ -90,11 +132,87 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
                 file_name:str, epochs:int=10):
+    """train the model and save it
+
+    Args:
+        model (tf.keras.Model): the model to be trained
+        trainset (tf.data.Dataset): the dataset used for training
+        valset (tf.data.Dataset): the dataset used for validation
+        testset (tf.data.Dataset): the dataset used for testing
+        file_name (str): the name of model to be saved as file
+        epochs (int, optional): the number of iteration the training would be done. Defaults to 10.
+
+    Returns:
+        tf.keras.Model, str, str: model after trained, the loss value, the accuracy value
+    """
+    # set the configuration of the model on training
     model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=[SparseCategoricalAccuracy()])
+    # train the model
     model.fit(trainset, validation_data=valset, epochs=epochs, verbose=0)
-    model.save(f"./../../data/model/{file_name}.h5")
+    # save the model into .h5 file
+    model.save(f"./../../../data/model/{file_name}.h5")
+    #  test the model with testset and getting the loss and accuracy values
     loss, acc = model.evaluate(testset, verbose=0)
     return model, loss, acc
+
+def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
+                batches:int=1, bucket_choosed:int=0):
+    """create the predicted mask by the model
+
+    Args:
+        testset (tf.data.Dataset): the dataset containing the image to predict the mask
+        file_name (str, optional): the model name saved as .h5 file. Defaults to "unet_custom".
+        batches (int, optional): the number of batches want to used. Defaults to 1.
+        bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
+
+    Returns:
+        tf.Tensor: the predicted mask from the model
+    """
+    # load the saved model
+    model = load_model(f"./../../../data/model/{file_name}.h5")
+    # extract the image from the dataset
+    for bucket_num, (images, _) in enumerate(testset.take(batches)):
+        if bucket_num == bucket_choosed:
+            # predict the masks from the given images
+            pred_mask = model.predict(images)
+            break
+    return pred_mask
+
+def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
+    """split the disc and cup section from the predicted mask
+
+    Args:
+        pred_mask (tf.Tensor): the predicted mask from model
+        treshold (float, optional): the treshold used to make mask as binary. Defaults to 0.1.
+        img_idx (int, optional): the index of mask that want to be visualized. Defaults to 13.
+
+    Returns:
+        tf.Tensor: the result of the splitted mask based on the label
+    """
+    cup_mask = pred_mask[..., 1]
+    disc_mask = pred_mask[..., 2]
+
+    binary_cup_mask = tf.where(cup_mask > treshold, 1, 0)
+    binary_disc_mask = tf.where(disc_mask > treshold, 1, 0)
+
+    plt.figure(figsize=(10,10))
+    plt.subplot(2, 2, 1)
+    plt.title("Predicted Cup")
+    plt.imshow(cup_mask[img_idx], cmap="gray")
+    plt.subplot(2, 2, 2)
+    plt.title("Predicted Disc")
+    plt.imshow(disc_mask[img_idx], cmap="gray")
+
+    plt.subplot(2, 2, 3)
+    plt.title("Binary Cup")
+    plt.imshow(binary_cup_mask[img_idx], cmap="gray")
+    plt.subplot(2, 2, 4)
+    plt.title("Binary Disc")
+    plt.imshow(binary_disc_mask[img_idx], cmap="gray")
+
+    plt.show()
+
+    return cup_mask, disc_mask, binary_cup_mask, binary_disc_mask
 
 def get_bounding_box(mask:np.array):
     """get the bounding box of the mask
