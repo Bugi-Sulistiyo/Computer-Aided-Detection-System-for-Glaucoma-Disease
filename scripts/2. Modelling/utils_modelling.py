@@ -1,7 +1,11 @@
+# Import the needed package
+## package for handling file and directory
 import os
+## package for handling the image and mask
 import numpy as np
+## package for visualize the image and mask
 import matplotlib.pyplot as plt
-
+## package for modelling
 import tensorflow as tf
 from tensorflow.keras import layers, models
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
@@ -41,8 +45,8 @@ def remap_mask(mask:tf.Tensor):
     Returns:
         tf.Tensor: remapped mask
     """
-    mask = tf.where(mask == 64, 1, mask)
-    mask = tf.where(mask ==255, 2, mask)
+    mask = tf.where(mask == 64, 1, mask) # change the cup value into 1
+    mask = tf.where(mask ==255, 2, mask) # change the disc value into 2
     return mask
 
 def load_image(img_path:str, mask_path:str, img_size:int=128):
@@ -57,16 +61,16 @@ def load_image(img_path:str, mask_path:str, img_size:int=128):
         tf.Tensor: image and mask
     """
     # import and standardize the image
-    img = tf.io.read_file(img_path)
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, (img_size, img_size), method='nearest')
-    img = tf.cast(img, tf.float32) / 255.0
+    img = tf.io.read_file(img_path)                                     # read the image file
+    img = tf.image.decode_jpeg(img, channels=3)                         # decode the image into 3 channels
+    img = tf.image.resize(img, (img_size, img_size), method='nearest')  # resize the image into the desired size
+    img = tf.cast(img, tf.float32) / 255.                               # change the image value into float32 and normalize it
 
     # import and standardize the mask
-    mask = tf.io.read_file(mask_path)
-    mask = tf.image.decode_png(mask, channels=1)
-    mask = tf.image.resize(mask, (img_size, img_size), method='nearest')
-    mask = tf.cast(mask, tf.int32)
+    mask = tf.io.read_file(mask_path)                                       # read the mask file
+    mask = tf.image.decode_png(mask, channels=1)                            # decode the mask into 1 channel
+    mask = tf.image.resize(mask, (img_size, img_size), method='nearest')    # resize the mask into the desired size
+    mask = tf.cast(mask, tf.int32)                                          # change the mask value into an integer
     # change the mask value into an integer
     mask = remap_mask(mask)
 
@@ -109,9 +113,12 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
 
     # Encoder 
     for filter in filters[:-1]:
+        # Extract the image features
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        # store the skip connection
         skips.append(x) 
+        # decrese the image size
         x = layers.MaxPool2D((2,2))(x)
 
     # Bottleneck
@@ -120,8 +127,11 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
 
     # Decoder
     for filter, skip in zip(reversed(filters[:-1]), reversed(skips)):
+        # restore the image size
         x = layers.UpSampling2D((2,2))(x)
+        # implement the skip connection
         x = layers.Concatenate()([x, skip])
+        # Extract the image features
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
         x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
 
@@ -189,12 +199,15 @@ def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
     Returns:
         tf.Tensor: the result of the splitted mask based on the label
     """
+    # devide the mask into two separate mask
     cup_mask = pred_mask[..., 1]
     disc_mask = pred_mask[..., 2]
 
+    # transform the mask image into a binary mask image
     binary_cup_mask = tf.where(cup_mask > treshold, 1, 0)
     binary_disc_mask = tf.where(disc_mask > treshold, 1, 0)
 
+    # show the predicted mask image directly
     plt.figure(figsize=(10,10))
     plt.subplot(2, 2, 1)
     plt.title("Predicted Cup")
@@ -203,6 +216,7 @@ def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
     plt.title("Predicted Disc")
     plt.imshow(disc_mask[img_idx], cmap="gray")
 
+    # show the binary mask image
     plt.subplot(2, 2, 3)
     plt.title("Binary Cup")
     plt.imshow(binary_cup_mask[img_idx], cmap="gray")
@@ -223,16 +237,20 @@ def visualize_pred_mask(testset:tf.data.Dataset, model:tf.keras.Model, img_shown
         img_shown (int, optional): number of image to be shown. Defaults to 4.
     """
     for image, mask in testset.take(1):
+        # infer the mask from the model
         pred = model.predict(image, verbose=0)
         for index in range(img_shown):
+            # show the true image
             plt.subplot(3, img_shown, index+1)
             plt.imshow(image[index])
             plt.axis("off")
 
+            # show the true mask
             plt.subplot(3, img_shown, index+(1+img_shown))
             plt.imshow(mask[index], cmap="gray")
             plt.axis("off")
 
+            # show the predicted mask
             plt.subplot(3, img_shown, index+(1+img_shown*2))
             plt.imshow(pred[index], cmap="gray")
             plt.axis("off")
@@ -248,18 +266,33 @@ def get_bounding_box(mask:np.array):
         tuple: the bounding box of the mask and the size of the mask (ymin, ymax, xmin, xmax, height, width)
     """
 
+    # split the mask into rows and columns
     rows = np.any(mask, axis=1)
     cols = np.any(mask, axis=0)
 
+    # get the bounding box of the mask
     ymin, ymax = np.where(rows)[0][[0, -1]]
     xmin, xmax = np.where(cols)[0][[0, -1]]
 
+    # get the size of the mask
     height = ymax - ymin + 1
     width = xmax - xmin + 1
 
     return ymin, ymax, xmin, xmax, height, width
 
 def visualize_bounding_box(label:str, mask:np.array, bmask:np.array, ymin:int, ymax:int, xmin:int, xmax:int):
+    """visualize the bounding box of the mask
+
+    Args:
+        label (str): label name of the mask
+        mask (np.array): the predicted mask
+        bmask (np.array): the binary mask
+        ymin (int): the minimum y value of the mask
+        ymax (int): the maximum y value of the mask
+        xmin (int): the minimum x value of the mask
+        xmax (int): the maximum x value of the mask
+    """
+    # show the bounding box of the mask
     plt.subplot(1, 2, 1)
     plt.imshow(mask, cmap="gray")
     plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, edgecolor='r', facecolor='none'))
@@ -267,6 +300,7 @@ def visualize_bounding_box(label:str, mask:np.array, bmask:np.array, ymin:int, y
     plt.title("Original Mask")
     plt.axis("off")
 
+    # show the binary mask
     plt.subplot(1, 2, 2)
     plt.imshow(bmask, cmap="gray")
     plt.gca().add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, edgecolor='r', facecolor='none'))
@@ -276,14 +310,16 @@ def visualize_bounding_box(label:str, mask:np.array, bmask:np.array, ymin:int, y
     plt.show()
 
 def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array, bdisc_mask:np.array):
-    """calculate the area of cup and disc and the CDR
+    """calculate the area and CDR of the mask
 
     Args:
-        bcup_mask (np.array): the mask of the cup. should be in binary
-        bdisc_mask (np.array): the mask of the disc. should be in binary
+        cup_mask (np.array): the cup mask
+        disc_mask (np.array): the disc mask
+        bcup_mask (np.array): the binary cup mask
+        bdisc_mask (np.array): the binary disc mask
 
     Returns:
-        tuple: the area of cup, the area of disc, the CDR
+        list[dict, dict]: the area and CDR of the mask, the bounding box of the mask
     """
     # count the area CDR
     cup_area = np.sum(bcup_mask)
