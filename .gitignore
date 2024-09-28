@@ -3,8 +3,8 @@ reference_paper/
 dataset/
 dataset_processed/
 dataset_used/
-dataset_used_split/
-dataset_used_split_v2/
+dataset_used_split_ori/
+dataset_used_split_aug/
 data/
 
 # other files
