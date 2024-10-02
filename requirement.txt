@@ -12,7 +12,7 @@ numpy==2.0.0
 opencv-python==4.10.0.84
 
 # data preprocessing
-scikit-learn=1.5.1
+scikit-learn==1.5.1
 
 # visualize data and annotation
 matplotlib==3.9.2
