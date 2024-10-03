@@ -166,7 +166,7 @@ def train_model(model:tf.keras.Model,
     return model, loss, acc
 
 def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
-                batches:int=1, bucket_choosed:int=0):
+                batches:int=1, get_one:bool=True, bucket_choosed:int=0):
     """create the predicted mask by the model
 
     Args:
@@ -174,18 +174,21 @@ def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
         file_name (str, optional): the model name saved as .h5 file. Defaults to "unet_custom".
         batches (int, optional): the number of batches want to used. Defaults to 1.
         bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
+        get_one (bool, optional): get one mask only. Defaults to True.
 
     Returns:
-        tf.Tensor, tf.keras.Model: the predicted mask from the model, the model
+        list=[tf.Tensor], tf.keras.Model: the predicted mask from the model, the model
     """
+    pred_mask = []
     # load the saved model
     model = load_model(f"./../../../data/model/{file_name}.h5")
     # extract the image from the dataset
     for bucket_num, (images, _) in enumerate(testset.take(batches)):
-        if bucket_num == bucket_choosed:
-            # predict the masks from the given images
+        if bucket_num == bucket_choosed and get_one:
             pred_mask = model.predict(images)
             break
+        # predict the masks from the given images
+        pred_mask.append(model.predict(images))
     return pred_mask, model
 
 def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
