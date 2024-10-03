@@ -28,7 +28,7 @@ This project use 2 virtual environment for easy use.
 - **General Environment** <br/>
   This environment is used during the segmentation and preparation step is being worked. The requirement file is [`requirement.txt`](https://github.com/Bugi-Sulistiyo/Glaucoma-segmentation/blob/main/requirement.txt).
 - **Modeling Environment** <br/>
-  This environment is used specifically on modeling and support the use of GPU during training and inference. The requirement file is [`modeling_requirement.txt`](https://github.com/Bugi-Sulistiyo/Glaucoma-segmentation/blob/main/modeling_requirement.txt). This virtual environment is made using miniconda.
+  This environment is used specifically on modeling and support the use of GPU during training and inference. The requirement file is [`modeling_requirement.txt`](https://github.com/Bugi-Sulistiyo/Glaucoma-segmentation/blob/main/modeling_requirement.txt). This virtual environment is made using miniconda. To make this venv, I recommend using this guide [pip install tensorflow](https://www.tensorflow.org/install/pip#windows-native).
 
 ## Contributor
 * Bugi Sulistiyo
