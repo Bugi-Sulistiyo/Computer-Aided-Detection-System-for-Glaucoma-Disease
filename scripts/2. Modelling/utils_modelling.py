@@ -7,9 +7,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 ## package for modelling
 import tensorflow as tf
-from tensorflow.keras import layers, models
-from tensorflow.keras.metrics import SparseCategoricalAccuracy
-from tensorflow.keras.models import load_model
+from tensorflow.keras.metrics import Accuracy, MeanIoU, Precision, Recall
+from tensorflow.keras.models import load_model, Model
+from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
 
 tf.keras.backend.clear_session()
 
@@ -73,6 +73,9 @@ def load_image(img_path:str, mask_path:str, img_size:int=128):
     mask = tf.cast(mask, tf.int32)                                          # change the mask value into an integer
     # change the mask value into an integer
     mask = remap_mask(mask)
+    # convert to one-hot encoding
+    mask = tf.one_hot(tf.squeeze(mask), depth=3)
+    mask = tf.cast(mask, tf.int32)
 
     return img, mask
 
@@ -107,37 +110,39 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
         tf.keras.Model: the unet model
     """
     # input layer of the model
-    input_layer = layers.Input(shape=input_shape)
+    input_layer = Input(shape=input_shape)
     x = input_layer
     skips = []
 
     # Encoder 
     for filter in filters[:-1]:
         # Extract the image features
-        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
-        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
         # store the skip connection
         skips.append(x) 
         # decrese the image size
-        x = layers.MaxPool2D((2,2))(x)
+        x = MaxPool2D((2,2))(x)
 
     # Bottleneck
-    x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
-    x = layers.Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
+    x = Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
+    x = Conv2D(filters[-1], (3,3), padding='same', activation='relu')(x)
 
     # Decoder
     for filter, skip in zip(reversed(filters[:-1]), reversed(skips)):
         # restore the image size
-        x = layers.UpSampling2D((2,2))(x)
+        x = UpSampling2D((2,2))(x)
         # implement the skip connection
-        x = layers.Concatenate()([x, skip])
+        x = Concatenate()([x, skip])
         # Extract the image features
-        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
-        x = layers.Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = Conv2D(filter, (3,3), padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
 
     # Output
-    output_layer = layers.Conv2D(num_classes, (1,1), activation='softmax')(x)
-    return models.Model(input_layer, output_layer)
+    output_layer = Conv2D(num_classes, (1,1), activation='softmax')(x)
+    return Model(input_layer, output_layer)
 
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
@@ -156,14 +161,15 @@ def train_model(model:tf.keras.Model,
         tf.keras.Model, str, str: model after trained, the loss value, the accuracy value
     """
     # set the configuration of the model on training
-    model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=[SparseCategoricalAccuracy()])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=[Accuracy(),
+                                                                            MeanIoU(num_classes=3),
+                                                                            Precision(), Recall()])
     # train the model
-    model.fit(trainset, validation_data=valset, epochs=epochs, verbose=0)
+    history = model.fit(trainset, validation_data=valset, epochs=epochs, verbose=1)
     # save the model into .h5 file
     model.save(f"./../../../data/model/{file_name}.h5")
     #  test the model with testset and getting the loss and accuracy values
-    loss, acc = model.evaluate(testset, verbose=0)
-    return model, loss, acc
+    return model, history, model.evaluate(testset, verbose=0)
 
 def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
                 batches:int=1, get_one:bool=True, bucket_choosed:int=0):
