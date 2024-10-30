@@ -6,6 +6,7 @@ dataset_used/
 dataset_used_split_ori/
 dataset_used_split_aug/
 data/
+dataset_hf/
 
 # other files
 .env
