@@ -79,12 +79,13 @@ def load_image(img_path:str, mask_path:str, img_size:int=128):
 
     return img, mask
 
-def create_dataset(img_paths:list, mask_paths:list, batch_size:int=16):
+def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size:int=16):
     """create a tf.data.Dataset from image and mask paths
 
     Args:
         img_paths (list): a list of image paths
         mask_paths (list): a list of mask paths
+        img_size (int, optional): the resolution of img 1:1. Defaults to 128.
         batch_size (int, optional): the size of batches. Defaults to 16.
 
     Returns:
@@ -93,9 +94,13 @@ def create_dataset(img_paths:list, mask_paths:list, batch_size:int=16):
     # create a dataset from the image and mask paths
     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
     # standardize the image and mask
-    dataset = dataset.map(load_image, num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(lambda x, y: load_image(x, y, img_size), num_parallel_calls=tf.data.AUTOTUNE)
+    # shuffle the dataset into a random order
+    dataset = dataset.shuffle(1024)
     # shuffle the dataset into a random order and make it a batch
     dataset = dataset.batch(batch_size)
+    # prefetch the dataset to make it faster
+    dataset = dataset.prefetch(tf.data.AUTOTUNE)
     return dataset
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
@@ -161,9 +166,9 @@ def train_model(model:tf.keras.Model,
         tf.keras.Model, str, str: model after trained, the loss value, the accuracy value
     """
     # set the configuration of the model on training
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=[Accuracy(),
-                                                                            MeanIoU(num_classes=3),
-                                                                            Precision(), Recall()])
+    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=[Accuracy(name="accuracy"),
+                                                                            MeanIoU(name="mean_iou", num_classes=3),
+                                                                            Precision(name="precision"), Recall(name="recall")])
     # train the model
     history = model.fit(trainset, validation_data=valset, epochs=epochs, verbose=1)
     # save the model into .h5 file
