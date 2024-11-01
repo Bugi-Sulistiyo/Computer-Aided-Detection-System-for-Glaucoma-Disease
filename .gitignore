@@ -7,6 +7,8 @@ dataset_used_split_ori/
 dataset_used_split_aug/
 data/
 dataset_hf/
+wandb/
+__pycache__/
 
 # other files
 .env
