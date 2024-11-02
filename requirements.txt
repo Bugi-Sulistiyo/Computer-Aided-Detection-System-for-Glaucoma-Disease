@@ -20,18 +20,22 @@ pandas==2.2.3
 # data image handling
 numpy==1.26.4
 opencv-python==4.10.0.84
-pillow==11.0.0
 
 # data preprocessing
 scikit-learn==1.5.2
+tf-clahe==0.1.0
 
 # visualize data and annotation
 matplotlib==3.9.2
+pillow==11.0.0
+
+# modeling
+tensorflow==2.10.1
+
+# tracking and versioning
+huggingface-hub==0.26.2
+wandb==0.17.0
 
 # others
 ipykernel==6.29.4
 openpyxl==3.1.5
-
-huggingface-hub==0.26.2
-tf-clahe==0.1.0
-tensorflow==2.10.1
