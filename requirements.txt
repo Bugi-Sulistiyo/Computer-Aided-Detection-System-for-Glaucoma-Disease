@@ -1,0 +1,37 @@
+# ===== Please make the venv on miniconda environment and use the following command to install the required packages
+# ===== Please make sure to install the CUDA and cuDNN before installing the tensorflow with GPU support
+## conda create -n <env_name> python=3.9
+## conda activate <env_name>
+## conda install -c conda-forge cudatoolkit=11.2 cudnn=8.1.0
+## python -m pip install --upgrade pip
+## pip install -r requirements.txt
+
+
+
+# environtment handling
+python-dotenv==1.0.1
+
+# dataset downloader
+googledriver==0.1.7
+
+# data tabular handling
+pandas==2.2.3
+
+# data image handling
+numpy==1.26.4
+opencv-python==4.10.0.84
+pillow==11.0.0
+
+# data preprocessing
+scikit-learn==1.5.2
+
+# visualize data and annotation
+matplotlib==3.9.2
+
+# others
+ipykernel==6.29.4
+openpyxl==3.1.5
+
+huggingface-hub==0.26.2
+tf-clahe==0.1.0
+tensorflow==2.10.1
