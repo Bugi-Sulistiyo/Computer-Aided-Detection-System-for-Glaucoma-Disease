@@ -5,14 +5,15 @@ python-dotenv==1.0.1
 googledriver==0.1.7
 
 # data tabular handling
-pandas==2.2.2
+pandas==2.2.3
 
 # data image handling
-numpy==2.0.0
+numpy==1.26.4
 opencv-python==4.10.0.84
+pillow==11.0.0
 
 # data preprocessing
-scikit-learn==1.5.1
+scikit-learn==1.5.2
 
 # visualize data and annotation
 matplotlib==3.9.2
@@ -20,3 +21,6 @@ matplotlib==3.9.2
 # others
 ipykernel==6.29.4
 openpyxl==3.1.5
+
+huggingface-hub==0.26.2
+tf-clahe==0.1.0
