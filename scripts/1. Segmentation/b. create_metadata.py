@@ -12,7 +12,7 @@ import cv2
 metadata = pd.DataFrame(columns=["label", "patient", "id", "gender",
                                 "img_type", "eye_side", "path"])
 labels = ["glaucoma", "non_glaucoma"]
-data_path = "dataset/"
+data_path = "datasets/original_source"
 
 # create the metadata
 for index, label in enumerate(os.listdir(data_path)):
@@ -32,11 +32,13 @@ for index, label in enumerate(os.listdir(data_path)):
         ## getting metadata information
         ### get patient name
         patient_clean = patient.replace("(", "").replace(")", "")
-        name = re.sub(r'\d+', '', patient_clean).lower().replace(" $", "").replace("tn.", "").replace("nn.", "").replace("ny.", "").replace("nn", "").replace("ny", "").replace("tn", "")
+        name = re.sub(r'\d+', '',
+                        patient_clean).lower().replace(" $", "").replace("tn.", "").replace("nn.", "").replace("ny.", "").replace("nn", "").replace("ny", "").replace("tn", "")
         ### get patient id
         id = re.findall(r'\d+', patient_clean)[0]
         ### get patient gender
-        if (re.search("nn", patient_clean.lower()) != None) or (re.search("ny", patient_clean.lower()) != None):
+        if ((re.search("nn", patient_clean.lower()) != None)
+            or (re.search("ny", patient_clean.lower()) != None)):
             gender = "woman"
         elif re.search("tn", patient_clean.lower()) != None:
             gender = "man"
@@ -45,7 +47,9 @@ for index, label in enumerate(os.listdir(data_path)):
         
         ### filter the image files
         for file_name in os.listdir(path_patient):
-            if (file_name[-3:] != "jpg") and (file_name[-3:] != "png") and (file_name[-3:] != "peg"):
+            if ((file_name[-3:] != "jpg")
+                and (file_name[-3:] != "png")
+                and (file_name[-3:] != "peg")):
                 continue
 
             final_path = os.path.join(path_patient, file_name)
@@ -67,12 +71,14 @@ for index, label in enumerate(os.listdir(data_path)):
                 img_type = "fundus"
             
             ## add metadata of each patient image to the dataframe
-            metadata.loc[len(metadata.index)] = [labels[index], name.strip(), id, gender,
-                                                img_type, eye_side, final_path]
+            metadata.loc[len(metadata.index)] = [labels[index], name.strip(),
+                                                id, gender,
+                                                img_type, eye_side,
+                                                final_path]
 
 # save metadata to csv
 if not os.path.exists("./data/"):
     os.makedirs("./data/")
-metadata.to_csv("./data/metadata.csv", index=False)
+metadata.to_csv("./data/raw_metadata.csv", index=False)
 
 print("completed create metadata.")
