@@ -7,16 +7,23 @@ import pandas as pd
 import numpy as np
 ## package for handling image
 import cv2
+## package for handling environment variables
+from dotenv import load_dotenv
+
+# load environment variables
+load_dotenv()
 
 # create global variables
+path_full = os.environ.get("ORI_PATH")
 metadata = pd.DataFrame(columns=["label", "patient", "id", "gender",
                                 "img_type", "eye_side", "path"])
 labels = ["glaucoma", "non_glaucoma"]
-data_path = "datasets/original_source"
+data_path = os.path.join(path_full, "datasets/original_source")
+metadata_path = os.path.join(path_full, "data")
 
 # create the metadata
-for index, label in enumerate(os.listdir(data_path)):
-    path_label = os.path.join(data_path, label)
+for index, label_src in enumerate(os.listdir(data_path)):
+    path_label = os.path.join(data_path, label_src)
 
     ## rename label folder
     if path_label != os.path.join(data_path, labels[index]):
@@ -77,8 +84,8 @@ for index, label in enumerate(os.listdir(data_path)):
                                                 final_path]
 
 # save metadata to csv
-if not os.path.exists("./data/"):
-    os.makedirs("./data/")
-metadata.to_csv("./data/raw_metadata.csv", index=False)
+if not os.path.exists(metadata_path):
+    os.makedirs(metadata_path)
+metadata.to_csv(os.path.join(metadata_path, "raw_metadata.csv"), index=False)
 
 print("completed create metadata.")

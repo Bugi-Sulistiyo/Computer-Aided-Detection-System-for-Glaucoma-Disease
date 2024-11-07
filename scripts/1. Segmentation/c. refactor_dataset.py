@@ -4,10 +4,16 @@ import os
 import shutil
 ## packages for handling data
 import pandas as pd
+## handling environment variables
+from dotenv import load_dotenv
+
+# load environment variables
+load_dotenv()
 
 # create global variables
-path_target = os.path.join("datasets", "preprocessed")
-metadata = pd.read_csv('data/raw_metadata.csv')
+path_full = os.environ.get("ORI_PATH")
+path_target = os.path.join(path_full, "datasets", "preprocessed")
+metadata = pd.read_csv(os.path.join(path_full, "data", "raw_metadata.csv"))
 
 # Split the fundus and oct images using raw metadata
 ## devide the data into fundus and oct images
@@ -18,10 +24,9 @@ oct_imgs = metadata.loc[metadata.img_type == 'oct',
 labels = list(metadata.label.unique())
 
 ## create directories for the restructured dataset
-if not os.path.exists(os.path.join(path_target)):
-    for label in labels:
-        os.makedirs(os.path.join(path_target, "fundus_image", label))
-        os.makedirs(os.path.join(path_target, "oct_image", label))
+for label in labels:
+    os.makedirs(os.path.join(path_target, "fundus_image", label), exist_ok=True)
+    os.makedirs(os.path.join(path_target, "oct_image", label), exist_ok=True)
 
 ## temporary dataframe for storing the new file name rules
 new_file_name = pd.DataFrame(columns=['id', 'file_name', 'new_path'])
@@ -62,6 +67,6 @@ for label in labels:
             print(f"File {file_name} already exists")
 
 ## save the new file name rules
-new_file_name.to_csv("data/refactored_metadata.csv", index=False)
+new_file_name.to_csv(os.path.join(path_full, "data/refactored_metadata.csv"), index=False)
 
 print("completed refactoring dataset.")
