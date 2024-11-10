@@ -6,15 +6,16 @@ import shutil
 import numpy as np
 ## package for visualize the image and mask
 import matplotlib.pyplot as plt
-## package for modelling
+## package for handling the dataset in general
 import tensorflow as tf
+## package for image augmentation
 from tf_clahe import clahe
+## package for modelling
 from tensorflow.keras.metrics import Accuracy, MeanIoU, Precision, Recall
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
 
 tf.keras.backend.clear_session()
-
 
 def copy_images(files:list, subset:str, src_dir:str, dst_dir:str):
     """copy images from source directory to destination directory
@@ -61,30 +62,32 @@ def get_file(file_path:str, src_path:str, file_type:str):
     except FileNotFoundError:
         return f'{file_path} not found'
 
-def augment_clahe(image:tf.Tensor):
+def augment_clahe(image:tf.Tensor, clip_limit:float):
     """augment image using CLAHE
 
     Args:
         image (tf.Tensor): the image to be augmented
+        clip_limit (float): the clip limit of the CLAHE
 
     Returns:
         tf.Tensor: the augmented image
     """
-    return clahe(image, clip_limit=1.5)
+    return clahe(image, clip_limit=clip_limit)
 
-def create_aug_img(imgs_path:list, src_dir:str, dst_dir:str):
+def create_aug_img(imgs_path:list, src_dir:str, dst_dir:str, clip_limit:float):
     """create augmented images using CLAHE
 
     Args:
         imgs_path (list): a list of images to be augmented
         src_dir (str): the source directory where the images are located
         dst_dir (str): the destination directory where the augmented images will be saved
+        clip_limit (float): the clip limit of the CLAHE
     """
     for img_path in imgs_path:
         # get image
         image = get_file(img_path, src_dir, "image")
         # augment image
-        image = augment_clahe(image)
+        image = augment_clahe(image, clip_limit)
         # turn back the tensor to image
         image = tf.image.encode_jpeg(image)
         # save the augmented image
