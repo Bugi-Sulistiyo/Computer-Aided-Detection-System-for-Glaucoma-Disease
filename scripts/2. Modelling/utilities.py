@@ -11,9 +11,11 @@ import tensorflow as tf
 ## package for image augmentation
 from tf_clahe import clahe
 ## package for modelling
-from tensorflow.keras.metrics import Accuracy, MeanIoU, Precision, Recall
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import AUC, Precision, Recall
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
+from tensorflow_addons.metrics import F1Score
 
 tf.keras.backend.clear_session()
 
@@ -180,7 +182,7 @@ def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size
     # standardize the image and mask
     dataset = dataset.map(lambda x, y: load_image(x, y, img_size), num_parallel_calls=tf.data.AUTOTUNE)
     # shuffle the dataset into a random order
-    dataset = dataset.shuffle(1024)
+    dataset = dataset.shuffle(512)
     # shuffle the dataset into a random order and make it a batch
     dataset = dataset.batch(batch_size)
     # prefetch the dataset to make it faster
@@ -233,7 +235,7 @@ def add_sample_weight(img:tf.Tensor, mask:tf.Tensor, weights:dict):
     class_weights = tf.constant(list(weights.values()))
     class_weights = class_weights / tf.reduce_sum(class_weights)
     # create an image of sample weight
-    sample_weights = tf.gather(class_weights, indices=tf.cast(mask, tf.int32))
+    sample_weights = tf.reduce_sum(class_weights * tf.cast(mask, tf.float32), axis=-1)
     return img, mask, sample_weights
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
@@ -282,9 +284,16 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     output_layer = Conv2D(num_classes, (1,1), activation='softmax')(x)
     return Model(input_layer, output_layer)
 
+def mean_px_acc(y_true, y_pred):
+    y_pred = tf.argmax(y_pred, axis=-1)
+    y_true = tf.argmax(y_true, axis=-1)
+    correct_pixels = tf.reduce_sum(tf.cast(tf.equal(y_true, y_pred), tf.float32), axis=[1, 2])
+    total_pixels = tf.reduce_sum(tf.ones_like(y_true, dtype=tf.float32), axis=[1,2])
+    return tf.reduce_mean(correct_pixels / total_pixels)
+
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
-                model_path:str, file_name:str, weights:dict, epochs:int=10):
+                model_path:str, file_name:str, epochs:int=10):
     """train the model and save it
 
     Args:
@@ -294,18 +303,29 @@ def train_model(model:tf.keras.Model,
         testset (tf.data.Dataset): the dataset used for testing
         model_path (str): the path where the model will be saved
         file_name (str): the name of model to be saved as file
-        weights (dict): the weight of each label in the mask images
         epochs (int, optional): the number of iteration the training would be done. Defaults to 10.
 
     Returns:
         tf.keras.Model, str, str: model after trained, the loss value, the accuracy value
     """
+    # get the weight of each label in the mask images
+    weights = calculate_weight(trainset)
+
     # set the configuration of the model on training
-    model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=[Accuracy(name="accuracy"),
-                                                                            MeanIoU(name="mean_iou", num_classes=3),
-                                                                            Precision(name="precision"), Recall(name="recall")])
+    model.compile(
+        optimizer='adam',
+        loss=CategoricalCrossentropy(from_logits=False),
+        weighted_metrics=[mean_px_acc,
+                        AUC(name="auc"),
+                        # MeanIoU(name="mean_iou", num_classes=3),
+                        Precision(name="precision"),
+                        Recall(name="recall")])
     # train the model
-    history = model.fit(trainset, validation_data=valset, epochs=epochs, verbose=1, class_weight=weights)
+    history = model.fit(
+        trainset.map(lambda x, y: add_sample_weight(x, y, weights)),
+        validation_data=valset.map(lambda x, y: add_sample_weight(x, y, weights)),
+        epochs=epochs,
+        verbose=1)
     # save the model into .h5 file
     model.save(os.path.join(model_path, f"{file_name}.h5"))
     #  test the model with testset and getting the loss and accuracy values
