@@ -517,7 +517,7 @@ def visualize_bounding_box(label:str, mask:np.array, bmask:np.array, ymin:int, y
     plt.axis("off")
     plt.show()
 
-def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array, bdisc_mask:np.array):
+def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array, bdisc_mask:np.array, visualize:bool=True):
     """calculate the area and CDR of the mask
 
     Args:
@@ -542,8 +542,9 @@ def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array
     # count the vertical CDR
     v_cdr = c_height / d_height
 
-    visualize_bounding_box("Disc", disc_mask, bdisc_mask, d_ymin, d_ymax, d_xmin, d_xmax)
-    visualize_bounding_box("Cup", cup_mask, bcup_mask, c_ymin, c_ymax, c_xmin, c_xmax)
+    if visualize:
+        visualize_bounding_box("Disc", disc_mask, bdisc_mask, d_ymin, d_ymax, d_xmin, d_xmax)
+        visualize_bounding_box("Cup", cup_mask, bcup_mask, c_ymin, c_ymax, c_xmin, c_xmax)
 
     return [{"cup_area": cup_area,
             "disc_area": disc_area,
