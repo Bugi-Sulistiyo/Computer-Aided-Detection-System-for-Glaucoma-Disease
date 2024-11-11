@@ -184,7 +184,7 @@ def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size
     # shuffle the dataset into a random order and make it a batch
     dataset = dataset.batch(batch_size)
     # prefetch the dataset to make it faster
-    dataset = dataset.prefetch(tf.data.AUTOTUNE)
+    dataset = dataset.prefetch(tf.data. AUTOTUNE)
     return dataset
 
 def calculate_weight(dataset:tf.data.Dataset, num_classes:int=3):
@@ -217,6 +217,24 @@ def calculate_weight(dataset:tf.data.Dataset, num_classes:int=3):
     for label, pxs in weights.items():
         weights[label] = round(np.mean(pxs), 4)
     return weights
+
+def add_sample_weight(img:tf.Tensor, mask:tf.Tensor, weights:dict):
+    """create a sample weight for each mask image
+
+    Args:
+        img (tf.Tensor): the image inside the bathced dataset
+        mask (tf.Tensor): the mask inside the bathced dataset
+        weights (dict): the weight of each label in the mask images
+
+    Returns:
+        tf.data.Dataset: the image, mask, and sample weight in the bathced dataset
+    """
+    # recalculate the weight of each label with constraint that the sum of the weight is 1
+    class_weights = tf.constant(list(weights.values()))
+    class_weights = class_weights / tf.reduce_sum(class_weights)
+    # create an image of sample weight
+    sample_weights = tf.gather(class_weights, indices=tf.cast(mask, tf.int32))
+    return img, mask, sample_weights
 
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
     """create a custom unet model dynamicly
