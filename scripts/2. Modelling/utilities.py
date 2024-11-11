@@ -285,12 +285,33 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     return Model(input_layer, output_layer)
 
 def mean_px_acc(y_true, y_pred):
+    """a custom metric to calculate the mean pixel accuracy
 
+    Args:
+        y_true (tf.Tensor): the true mask
+        y_pred (tf.Tensor): the predicted mask
+
+    Returns:
+        tf.Tensor: the mean pixel accuracy
+    """
+    # get the index of the maximum value in the mask
     y_pred = tf.argmax(y_pred, axis=-1)
     y_true = tf.argmax(y_true, axis=-1)
+    # get the component of the number of correct pixels and total pixels
     correct_pixels = tf.reduce_sum(tf.cast(tf.equal(y_true, y_pred), tf.float32), axis=[1, 2])
     total_pixels = tf.reduce_sum(tf.ones_like(y_true, dtype=tf.float32), axis=[1,2])
+    # calculate the mean pixel accuracy
     return tf.reduce_mean(correct_pixels / total_pixels)
+
+class AUCStoppingCallback(Callback):
+    def __init__(self, target_auc:float=.98):
+        super(AUCStoppingCallback, self).__init__()
+        self.target_auc = target_auc
+    
+    def on_epoch_end(self, epoch, logs=None):
+        if logs['val_auc'] is not None and logs['val_auc'] >= self.target_auc:
+            print(f"\nReached {self.target_auc} AUC value. Stopping the training")
+            self.model.stop_training = True
 
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
@@ -325,7 +346,7 @@ def train_model(model:tf.keras.Model,
     history = model.fit(
         trainset.map(lambda x, y: add_sample_weight(x, y, weights)),
         validation_data=valset.map(lambda x, y: add_sample_weight(x, y, weights)),
-        epochs=epochs,
+        epochs=epochs, callbacks=[AUCStoppingCallback(target_auc=.98)],
         verbose=1)
     # save the model into .h5 file
     model.save(os.path.join(model_path, f"{file_name}.h5"))
