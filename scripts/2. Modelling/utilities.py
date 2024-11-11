@@ -11,11 +11,11 @@ import tensorflow as tf
 ## package for image augmentation
 from tf_clahe import clahe
 ## package for modelling
-from tensorflow.keras.losses import CategoricalCrossentropy
-from tensorflow.keras.metrics import AUC, Precision, Recall
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
-from tensorflow_addons.metrics import F1Score
+from tensorflow.keras.losses import CategoricalCrossentropy
+from tensorflow.keras.metrics import AUC, Precision, Recall
+from tensorflow.keras.callbacks import Callback
 
 tf.keras.backend.clear_session()
 
@@ -285,6 +285,7 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     return Model(input_layer, output_layer)
 
 def mean_px_acc(y_true, y_pred):
+
     y_pred = tf.argmax(y_pred, axis=-1)
     y_true = tf.argmax(y_true, axis=-1)
     correct_pixels = tf.reduce_sum(tf.cast(tf.equal(y_true, y_pred), tf.float32), axis=[1, 2])
