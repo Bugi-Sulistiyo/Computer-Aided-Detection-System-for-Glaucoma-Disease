@@ -187,6 +187,37 @@ def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size
     dataset = dataset.prefetch(tf.data.AUTOTUNE)
     return dataset
 
+def calculate_weight(dataset:tf.data.Dataset, num_classes:int=3):
+    """calculate the weight of each label in the mask images
+
+    Args:
+        dataset (tf.data.Dataset): the dataset containing the image and mask (the batched dataset)
+        num_classes (int, optional): the number count of existing class. Defaults to 3.
+
+    Returns:
+        dict: a dictionary containing the average weight of each label
+    """
+    # an empty dictionary to store the weight of each label
+    weights = {}
+    # populate the keys of the dictionary with the label and define the list of weights
+    for label in range(num_classes):
+        weights[label] = []
+    # iterate over the dataset to calculate the weight of each label on each mask
+    for _, masks in dataset:
+        for mask in masks:
+            count_px = {}
+            # extract the number of pixel for each label
+            for i in range(num_classes):
+                count_px[i] = np.sum(mask[..., i])
+            # calculate the weight of each label on a single mask
+            for i in range(num_classes):
+                weights[i].append((1 / count_px[i])
+                                    * (np.sum([count_px[j] for j in range(num_classes)]) / num_classes))
+    # calculate the average weight of each label
+    for label, pxs in weights.items():
+        weights[label] = round(np.mean(pxs), 4)
+    return weights
+
 def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
     """create a custom unet model dynamicly
 
@@ -235,7 +266,7 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
 
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
-                file_name:str, epochs:int=10):
+                model_path:str, file_name:str, weights:dict, epochs:int=10):
     """train the model and save it
 
     Args:
@@ -243,7 +274,9 @@ def train_model(model:tf.keras.Model,
         trainset (tf.data.Dataset): the dataset used for training
         valset (tf.data.Dataset): the dataset used for validation
         testset (tf.data.Dataset): the dataset used for testing
+        model_path (str): the path where the model will be saved
         file_name (str): the name of model to be saved as file
+        weights (dict): the weight of each label in the mask images
         epochs (int, optional): the number of iteration the training would be done. Defaults to 10.
 
     Returns:
@@ -254,9 +287,9 @@ def train_model(model:tf.keras.Model,
                                                                             MeanIoU(name="mean_iou", num_classes=3),
                                                                             Precision(name="precision"), Recall(name="recall")])
     # train the model
-    history = model.fit(trainset, validation_data=valset, epochs=epochs, verbose=1)
+    history = model.fit(trainset, validation_data=valset, epochs=epochs, verbose=1, class_weight=weights)
     # save the model into .h5 file
-    model.save(f"./../../../data/model/{file_name}.h5")
+    model.save(os.path.join(model_path, f"{file_name}.h5"))
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
