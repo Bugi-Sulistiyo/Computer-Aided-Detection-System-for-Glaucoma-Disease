@@ -363,12 +363,13 @@ def train_model(model:tf.keras.Model,
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
-def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
+def predict_model(testset:tf.data.Dataset, model_path:str, file_name:str="unet_custom",
                 batches:int=1, get_one:bool=True, bucket_choosed:int=0):
     """create the predicted mask by the model
 
     Args:
         testset (tf.data.Dataset): the dataset containing the image to predict the mask
+        model_path (str): the path where the model is saved
         file_name (str, optional): the model name saved as .h5 file. Defaults to "unet_custom".
         batches (int, optional): the number of batches want to used. Defaults to 1.
         bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
@@ -379,7 +380,9 @@ def predict_model(testset:tf.data.Dataset, file_name:str="unet_custom",
     """
     pred_mask = []
     # load the saved model
-    model = load_model(f"./../../../data/model/{file_name}.h5")
+    model = load_model(
+        os.path.join(model_path, f"{file_name}.h5"),
+        custom_objects={"mean_px_acc": mean_px_acc})
     # extract the image from the dataset
     for bucket_num, (images, _) in enumerate(testset.take(batches)):
         if bucket_num == bucket_choosed and get_one:
@@ -440,20 +443,24 @@ def visualize_pred_mask(testset:tf.data.Dataset, model:tf.keras.Model, img_shown
     for image, mask in testset.take(1):
         # infer the mask from the model
         pred = model.predict(image, verbose=0)
+        plt.figure(figsize=(15, 15))
         for index in range(img_shown):
             # show the true image
             plt.subplot(3, img_shown, index+1)
             plt.imshow(image[index])
+            plt.title("input")
             plt.axis("off")
 
             # show the true mask
             plt.subplot(3, img_shown, index+(1+img_shown))
-            plt.imshow(mask[index], cmap="gray")
+            plt.imshow(tf.argmax(mask[index], axis=-1), cmap="jet")
+            plt.title("label")
             plt.axis("off")
 
             # show the predicted mask
             plt.subplot(3, img_shown, index+(1+img_shown*2))
-            plt.imshow(pred[index], cmap="gray")
+            plt.imshow(pred[index], cmap="jet")
+            plt.title("prediction")
             plt.axis("off")
         break
 
