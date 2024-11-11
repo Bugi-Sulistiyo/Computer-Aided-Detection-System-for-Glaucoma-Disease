@@ -11,14 +11,18 @@ import tensorflow as tf
 ## package for image augmentation
 from tf_clahe import clahe
 ## package for modelling
+### create the model
 from tensorflow.keras.models import load_model, Model
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
+### compile the model
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import AUC, Precision, Recall
 from tensorflow.keras.callbacks import Callback
 
+# Clear the session
 tf.keras.backend.clear_session()
 
+# Function for data preparation
 def copy_images(files:list, subset:str, src_dir:str, dst_dir:str):
     """copy images from source directory to destination directory
 
@@ -64,6 +68,7 @@ def get_file(file_path:str, src_path:str, file_type:str):
     except FileNotFoundError:
         return f'{file_path} not found'
 
+# Function for image augmentation
 def augment_clahe(image:tf.Tensor, clip_limit:float):
     """augment image using CLAHE
 
@@ -99,6 +104,7 @@ def create_aug_img(imgs_path:list, src_dir:str, dst_dir:str, clip_limit:float):
                 f"{img_path.split('.')[0]}_aug.jpg"),
             image)
 
+# function for modeling
 def load_img_mask(dir_path:str):
     """load images and masks from a directory (train/val/test)
 
@@ -304,6 +310,11 @@ def mean_px_acc(y_true, y_pred):
     return tf.reduce_mean(correct_pixels / total_pixels)
 
 class AUCStoppingCallback(Callback):
+    """a custom callback to stop the training when the AUC value reaches the target value
+
+    Args:
+        Callback (tf.keras.callbacks.Callback): the callback class from tensorflow
+    """
     def __init__(self, target_auc:float=.98):
         super(AUCStoppingCallback, self).__init__()
         self.target_auc = target_auc
@@ -339,7 +350,6 @@ def train_model(model:tf.keras.Model,
         loss=CategoricalCrossentropy(from_logits=False),
         weighted_metrics=[mean_px_acc,
                         AUC(name="auc"),
-                        # MeanIoU(name="mean_iou", num_classes=3),
                         Precision(name="precision"),
                         Recall(name="recall")])
     # train the model
