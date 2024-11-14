@@ -6,6 +6,8 @@ import shutil
 import numpy as np
 ## package for visualize the image and mask
 import matplotlib.pyplot as plt
+## package for handling the mask bounding box
+from skimage.measure import label, regionprops
 ## package for handling the dataset in general
 import tensorflow as tf
 ## package for image augmentation
@@ -67,6 +69,72 @@ def get_file(file_path:str, src_path:str, file_type:str):
         return file
     except FileNotFoundError:
         return f'{file_path} not found'
+    
+def count_dataset_cdr(mask_path:str, visualize:bool=False):
+    """Count the CDR value from the mask image
+
+    Args:
+        mask_path (str): the path of the mask image
+        visualize (bool, optional): visualize the mask image with annotation. Defaults to False.
+
+    Returns:
+        Dict: the CDR values (Area CDR, Horizontal CDR, Vertical CDR)
+    """
+    # read the mask file
+    mask = tf.io.read_file(mask_path)
+    mask = tf.image.decode_png(mask, channels=1)
+    mask = tf.image.resize(mask, (512, 512), method="nearest")
+    mask = tf.cast(mask, tf.int32)
+
+    # change the mask image into 2D
+    mask_2d = mask[:,:,0]
+    # get the bounding box of the mask
+    cup_mask = mask_2d == 64
+    disc_mask = mask_2d == 255
+    cup_bbox = regionprops(label(cup_mask))[0].bbox
+    disc_bbox = regionprops(label(disc_mask))[0].bbox
+
+    # calculate the CDR variables
+    cup_width = cup_bbox[3] - cup_bbox[1]
+    disc_width = disc_bbox[3] - disc_bbox[1]
+    cup_height = cup_bbox[2] - cup_bbox[0]
+    disc_height = disc_bbox[2] - disc_bbox[0]
+
+    # visualize the mask with bounding box
+    if visualize:
+        plt.figure(figsize=(10, 10))
+
+        plt.subplot(2,2, 1)
+        plt.imshow(mask_2d, cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+                                        cup_width, cup_height,
+                                        edgecolor='cyan', facecolor='none'))
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+                                        disc_width, disc_height,
+                                        edgecolor='red', facecolor='none'))
+        plt.title("Original Mask")
+        plt.axis("off")
+
+        plt.subplot(2, 2, 3)
+        plt.imshow(cup_mask, cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+                                        cup_width, cup_height,
+                                        edgecolor='r', facecolor='none'))
+        plt.title("Cup Mask")
+        plt.axis("off")
+
+        plt.subplot(2, 2, 4)
+        plt.imshow(disc_mask, cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+                                        disc_width, disc_height,
+                                        edgecolor='r', facecolor='none'))
+        plt.title("Disc Mask")
+        plt.axis("off")
+        plt.show()
+    # return the CDR values
+    return {"Area CDR": np.sum(cup_mask) / np.sum(disc_mask),
+            "Horizontal CDR": cup_width / disc_width,
+            "Vertical CDR": cup_height / disc_height}
 
 # Function for image augmentation
 def augment_clahe(image:tf.Tensor, clip_limit:float):
