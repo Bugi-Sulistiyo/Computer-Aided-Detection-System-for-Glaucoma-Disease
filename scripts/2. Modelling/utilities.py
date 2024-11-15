@@ -108,10 +108,10 @@ def count_dataset_cdr(mask_path:str, visualize:bool=False):
         plt.imshow(mask_2d, cmap="gray")
         plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
                                         cup_width, cup_height,
-                                        edgecolor='cyan', facecolor='none'))
+                                        edgecolor='red', facecolor='none'))
         plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
                                         disc_width, disc_height,
-                                        edgecolor='red', facecolor='none'))
+                                        edgecolor='cyan', facecolor='none'))
         plt.title("Original Mask")
         plt.axis("off")
 
@@ -132,7 +132,7 @@ def count_dataset_cdr(mask_path:str, visualize:bool=False):
         plt.axis("off")
         plt.show()
     # return the CDR values
-    return {"Area CDR": np.sum(cup_mask) / np.sum(disc_mask),
+    return {"Area CDR": np.sum(cup_mask) / np.sum(np.logical_or(disc_mask, cup_mask)),
             "Horizontal CDR": cup_width / disc_width,
             "Vertical CDR": cup_height / disc_height}
 
