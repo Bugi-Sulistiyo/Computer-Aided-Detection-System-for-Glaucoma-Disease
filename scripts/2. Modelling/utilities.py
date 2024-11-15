@@ -4,6 +4,8 @@ import os
 import shutil
 ## package for handling the image and mask
 import numpy as np
+## package for handling the dataframe
+import pandas as pd
 ## package for visualize the image and mask
 import matplotlib.pyplot as plt
 ## package for handling the mask bounding box
@@ -20,6 +22,8 @@ from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Conc
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import AUC, Precision, Recall
 from tensorflow.keras.callbacks import Callback
+### predict requirement
+from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError, Huber
 
 # Clear the session
 tf.keras.backend.clear_session()
@@ -431,6 +435,17 @@ def train_model(model:tf.keras.Model,
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
+def custom_load_model(model_path:str):
+    """load the model with custom metric
+
+    Args:
+        model_path (str): the complete path of the model
+
+    Returns:
+        tf.keras.Model: the model
+    """
+    return load_model(model_path, custom_objects={"mean_px_acc": mean_px_acc})
+
 def predict_model(testset:tf.data.Dataset, model_path:str, file_name:str="unet_custom",
                 batches:int=1, get_one:bool=True, bucket_choosed:int=0):
     """create the predicted mask by the model
@@ -448,9 +463,7 @@ def predict_model(testset:tf.data.Dataset, model_path:str, file_name:str="unet_c
     """
     pred_mask = []
     # load the saved model
-    model = load_model(
-        os.path.join(model_path, f"{file_name}.h5"),
-        custom_objects={"mean_px_acc": mean_px_acc})
+    model = custom_load_model(os.path.join(model_path, f"{file_name}.h5"))
     # extract the image from the dataset
     for bucket_num, (images, _) in enumerate(testset.take(batches)):
         if bucket_num == bucket_choosed and get_one:
@@ -631,3 +644,82 @@ def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array
             "c_xmax": c_xmax,
             "c_height": c_height,
             "c_width": c_width}]
+
+def ev_cdr(model:tf.keras.Model, img_path:str, mask_path:str, threshold:float=.5, img_size:int=128, visualize:bool=False):
+    img = tf.io.read_file(img_path)
+    img = tf.image.decode_jpeg(img, channels=3)
+    img = tf.image.resize(img, (img_size, img_size), method='nearest')
+    img = tf.cast(img, tf.float32) / 255.
+    img = tf.expand_dims(img, axis=0)
+
+    pred_mask = model.predict(img, verbose=0)
+
+    cup_mask = tf.where(pred_mask[..., 1] > threshold, 1, 0)
+    disc_mask = tf.where(pred_mask[..., 2] > threshold, 1, 0)
+
+    cup_bbox = regionprops(label(cup_mask.numpy())[0])[0].bbox
+    disc_bbox = regionprops(label(disc_mask.numpy())[0])[0].bbox
+
+    cup_width = cup_bbox[3] - cup_bbox[1]
+    cup_height = cup_bbox[2] - cup_bbox[0]
+    disc_width = disc_bbox[3] - disc_bbox[1]
+    disc_height = disc_bbox[2] - disc_bbox[0]
+
+    if visualize:
+        plt.figure(figsize=(10, 10))
+
+        plt.subplot(2,2, 1)
+        plt.imshow(plt.imread(mask_path), cmap="gray")
+        plt.title("Original Mask")
+        plt.axis("off")
+
+        plt.subplot(2,2, 2)
+        plt.imshow(tf.argmax(pred_mask, axis=-1)[0], cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+                                        cup_width, cup_height,
+                                        edgecolor='r', facecolor='none'))
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+                                        disc_width, disc_height,
+                                        edgecolor='c', facecolor='none'))
+        plt.title("Predicted Mask")
+        plt.axis("off")
+
+        plt.subplot(2, 2, 3)
+        plt.imshow(cup_mask[0], cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+                                        cup_width, cup_height,
+                                        edgecolor='r', facecolor='none'))
+        plt.title("Cup Mask")
+        plt.axis("off")
+
+        plt.subplot(2, 2, 4)
+        plt.imshow(disc_mask[0], cmap="gray")
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+                                        disc_width, disc_height,
+                                        edgecolor='c', facecolor='none'))
+        plt.title("Disc Mask")
+        plt.axis("off")
+        plt.show()
+    
+    return {"area_cdr": np.sum(cup_mask) / np.sum(np.logical_or(disc_mask, cup_mask)),
+            "horizontal_cdr": cup_width / disc_width,
+            "vertical_cdr": cup_height / disc_height}
+
+def count_loss_cdr(dts_cdr:pd.core.series.Series, pred_cdr:pd.core.series.Series):
+    dts_cdr.id = dts_cdr.id.apply(lambda x: x.replace("_mask", ""))
+    pred_cdr.id = pred_cdr.id.apply(lambda x: x.replace("_aug", ""))
+    cdr_evalution = dts_cdr.merge(pred_cdr, on="id", suffixes=("_true", "_pred"))
+
+    mse = MeanSquaredError()
+    mae = MeanAbsoluteError()
+    huber = Huber()
+
+    return {"a_mse": mse(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
+            "a_mae": mae(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
+            "a_huber": huber(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
+            "h_mse": mse(cdr_evalution.h_cdr_true, cdr_evalution.h_cdr_pred).numpy(),
+            "h_mae": mae(cdr_evalution.h_cdr_true, cdr_evalution.h_cdr_pred).numpy(),
+            "h_huber": huber(cdr_evalution.h_cdr_true, cdr_evalution.h_cdr_pred).numpy(),
+            "v_mse": mse(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy(),
+            "v_mae": mae(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy(),
+            "v_huber": huber(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy()}
