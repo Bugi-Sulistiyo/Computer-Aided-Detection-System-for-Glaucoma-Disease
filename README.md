@@ -29,8 +29,10 @@ The dataset being used is confidential because of it's medical properties. The d
 There are several things to do before the script could be run. Also, in order to replicate the project, the script should be runned in specific order (alphabetical or numerical). Inside the `scripts` folder, there are guides to help in form of markdown.
 
 #### Environment
-In order for Tensorflow use GPU when training or inference, it recommended to use venv from miniconda. Follow guide from [Install Tensorflow with pip](https://www.tensorflow.org/install/pip#windows-native). All the necessary dependencies is stored on [`requirements.txt`](requirements.txt) file.<br>
-Th
+In order for Tensorflow use GPU when training or inference, it recommended to use venv from miniconda. Following guide from [Install Tensorflow with pip](https://www.tensorflow.org/install/pip#windows-native). All the necessary dependencies is stored on [`requirements.txt`](requirements.txt) file.<br>
+To make there's no error caused by path and the keep the confidentiality of the dataset, the `.env` file is used. there are two variables in it such as:
+- DATASET_GDRIVE_LINK → store the dataset link
+- ORI_PATH → store the full path of where the project is stored
 
 ## Contributor
 * Bugi Sulistiyo
