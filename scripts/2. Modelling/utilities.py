@@ -131,7 +131,7 @@ def count_dataset_cdr(mask_path:str, visualize:bool=False):
         plt.imshow(disc_mask, cmap="gray")
         plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
                                         disc_width, disc_height,
-                                        edgecolor='r', facecolor='none'))
+                                        edgecolor='c', facecolor='none'))
         plt.title("Disc Mask")
         plt.axis("off")
         plt.show()
