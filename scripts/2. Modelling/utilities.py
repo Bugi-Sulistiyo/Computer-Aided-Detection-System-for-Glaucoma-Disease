@@ -17,7 +17,8 @@ from tf_clahe import clahe
 ## package for modelling
 ### create the model
 from tensorflow.keras.models import load_model, Model
-from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization
+from tensorflow.keras.applications import MobileNet, EfficientNetB0
+from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization, Dropout
 ### compile the model
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import AUC, Precision, Recall
@@ -361,6 +362,82 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     # Output
     output_layer = Conv2D(num_classes, (1,1), activation='softmax')(x)
     return Model(input_layer, output_layer)
+
+def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[32, 64, 128], dropout_rate=0.5):
+    """
+    MobileNet for semantic segmentation.
+
+    Args:
+        input_shape (tuple): Shape of the input images. Defaults to (128, 128, 3).
+        num_classes (int): Number of output classes. Defaults to 3.
+        filters (list): Filters for the decoder layers. Defaults to [32, 64, 128].
+        dropout_rate (float): Dropout rate to apply in decoder layers. Defaults to 0.5.
+
+    Returns:
+        tf.keras.Model: The MobileNet segmentation model.
+    """
+    # Load the MobileNet model
+    base_model = MobileNet(input_shape=input_shape, include_top=False, weights='imagenet')
+
+    # Get the output of the encoder
+    encoder_output = base_model.output  # Output features from the deepest layer
+
+    # Decoder
+    x = encoder_output
+    for filter in reversed(filters):
+        # Upsample and apply convolution layers
+        x = UpSampling2D((2, 2))(x)
+        x = Conv2D(filter, (3, 3), padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = Dropout(dropout_rate)(x)
+
+    while x.shape[1] < input_shape[0]:
+        x =  UpSampling2D((2,2))(x)
+    # Output layer for segmentation
+    output_layer = Conv2D(num_classes, (1, 1), activation='softmax')(x)
+
+    # Create the model
+    model = Model(inputs=base_model.input, outputs=output_layer)
+
+    return model
+
+def efficientNet_model(input_shape=(128, 128, 3), num_classes=3, filters=[32, 64, 128], dropout_rate=0.5):
+    """
+    MobileNet for semantic segmentation.
+
+    Args:
+        input_shape (tuple): Shape of the input images. Defaults to (128, 128, 3).
+        num_classes (int): Number of output classes. Defaults to 3.
+        filters (list): Filters for the decoder layers. Defaults to [32, 64, 128].
+        dropout_rate (float): Dropout rate to apply in decoder layers. Defaults to 0.5.
+
+    Returns:
+        tf.keras.Model: The MobileNet segmentation model.
+    """
+    # Load the MobileNet model
+    base_model = EfficientNetB0(input_shape=input_shape, include_top=False, weights='imagenet')
+
+    # Get the output of the encoder
+    encoder_output = base_model.output  # Output features from the deepest layer
+
+    # Decoder
+    x = encoder_output
+    for filter in reversed(filters):
+        # Upsample and apply convolution layers
+        x = UpSampling2D((2, 2))(x)
+        x = Conv2D(filter, (3, 3), padding='same', activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = Dropout(dropout_rate)(x)
+
+    while x.shape[1] < input_shape[0]:
+        x =  UpSampling2D((2,2))(x)
+    # Output layer for segmentation
+    output_layer = Conv2D(num_classes, (1, 1), activation='softmax')(x)
+
+    # Create the model
+    model = Model(inputs=base_model.input, outputs=output_layer)
+
+    return model
 
 def mean_px_acc(y_true, y_pred):
     """a custom metric to calculate the mean pixel accuracy
