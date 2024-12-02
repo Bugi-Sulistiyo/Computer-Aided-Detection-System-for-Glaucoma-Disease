@@ -17,12 +17,13 @@ from tf_clahe import clahe
 ## package for modelling
 ### create the model
 from tensorflow.keras.models import load_model, Model
-from tensorflow.keras.applications import MobileNet, EfficientNetB0
+from tensorflow.keras.applications import MobileNet
+from tensorflow.keras.applications.efficientnet_v2 import EfficientNetV2S
 from tensorflow.keras.layers import Input, Conv2D, MaxPool2D, UpSampling2D, Concatenate, BatchNormalization, Dropout
 ### compile the model
 from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import AUC, Precision, Recall
-from tensorflow.keras.callbacks import Callback
+from tensorflow.keras.callbacks import Callback, TensorBoard
 ### predict requirement
 from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError, Huber
 
@@ -361,17 +362,17 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
 
     # Output
     output_layer = Conv2D(num_classes, (1,1), activation='softmax')(x)
+
+    # Create the model
     return Model(input_layer, output_layer)
 
-def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[32, 64, 128], dropout_rate=0.5):
-    """
-    MobileNet for semantic segmentation.
+def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32, 64]):
+    """create a mobilenet model for semantic segmentation
 
     Args:
         input_shape (tuple): Shape of the input images. Defaults to (128, 128, 3).
         num_classes (int): Number of output classes. Defaults to 3.
-        filters (list): Filters for the decoder layers. Defaults to [32, 64, 128].
-        dropout_rate (float): Dropout rate to apply in decoder layers. Defaults to 0.5.
+        filters (list): Filters for the decoder layers. Defaults to [16, 32, 64].
 
     Returns:
         tf.keras.Model: The MobileNet segmentation model.
@@ -380,64 +381,64 @@ def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[32, 64, 1
     base_model = MobileNet(input_shape=input_shape, include_top=False, weights='imagenet')
 
     # Get the output of the encoder
-    encoder_output = base_model.output  # Output features from the deepest layer
+    x = base_model.output  # Output features from the deepest layer
 
     # Decoder
-    x = encoder_output
     for filter in reversed(filters):
         # Upsample and apply convolution layers
         x = UpSampling2D((2, 2))(x)
         x = Conv2D(filter, (3, 3), padding='same', activation='relu')(x)
         x = BatchNormalization()(x)
-        x = Dropout(dropout_rate)(x)
-
+    
+    # Upsample the output of the encoder to the input size
     while x.shape[1] < input_shape[0]:
         x =  UpSampling2D((2,2))(x)
     # Output layer for segmentation
     output_layer = Conv2D(num_classes, (1, 1), activation='softmax')(x)
 
     # Create the model
-    model = Model(inputs=base_model.input, outputs=output_layer)
+    return Model(inputs=base_model.input, outputs=output_layer)
 
-    return model
-
-def efficientNet_model(input_shape=(128, 128, 3), num_classes=3, filters=[32, 64, 128], dropout_rate=0.5):
-    """
-    MobileNet for semantic segmentation.
+def efficientnet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32, 64]):
+    """create a efficientnet model for semantic segmentation
 
     Args:
         input_shape (tuple): Shape of the input images. Defaults to (128, 128, 3).
         num_classes (int): Number of output classes. Defaults to 3.
-        filters (list): Filters for the decoder layers. Defaults to [32, 64, 128].
-        dropout_rate (float): Dropout rate to apply in decoder layers. Defaults to 0.5.
+        filters (list): Filters for the decoder layers. Defaults to [16, 32, 64].
 
     Returns:
-        tf.keras.Model: The MobileNet segmentation model.
+        tf.keras.Model: The EfficientNet segmentation model.
     """
-    # Load the MobileNet model
-    base_model = EfficientNetB0(input_shape=input_shape, include_top=False, weights='imagenet')
+    # Load the EfficientNet model
+    base_model = EfficientNetV2S(input_shape=input_shape, include_top=False, weights='imagenet')
+
+    # Get the skip layers from the base model
+    skip_layers = [
+        base_model.get_layer("block2a_project_bn").output,  # shallow features
+        base_model.get_layer("block3a_project_bn").output,  # mid-level features
+        base_model.get_layer("block4a_project_bn").output   # deep features
+    ]
 
     # Get the output of the encoder
-    encoder_output = base_model.output  # Output features from the deepest layer
-
+    x = base_model.output  # Output features from the deepest layer
+    
     # Decoder
-    x = encoder_output
-    for filter in reversed(filters):
+    for index, filter in enumerate(reversed(filters)):
         # Upsample and apply convolution layers
         x = UpSampling2D((2, 2))(x)
+        x = Concatenate()([x, skip_layers[-(index+1)]])
         x = Conv2D(filter, (3, 3), padding='same', activation='relu')(x)
         x = BatchNormalization()(x)
-        x = Dropout(dropout_rate)(x)
 
+    # Upsample the output of the encoder to the input size
     while x.shape[1] < input_shape[0]:
-        x =  UpSampling2D((2,2))(x)
+        x = UpSampling2D((2, 2))(x)
     # Output layer for segmentation
     output_layer = Conv2D(num_classes, (1, 1), activation='softmax')(x)
 
     # Create the model
-    model = Model(inputs=base_model.input, outputs=output_layer)
-
-    return model
+    return Model(inputs=base_model.input, outputs=output_layer)
 
 def mean_px_acc(y_true, y_pred):
     """a custom metric to calculate the mean pixel accuracy
@@ -470,12 +471,12 @@ class AUCStoppingCallback(Callback):
     
     def on_epoch_end(self, epoch, logs=None):
         if logs['val_auc'] is not None and logs['val_auc'] >= self.target_auc:
-            print(f"\nReached {self.target_auc} AUC value. Stopping the training")
+            print(f"\nReached {self.target_auc} AUC value. Stopping the training on epoch {epoch}")
             self.model.stop_training = True
 
 def train_model(model:tf.keras.Model,
                 trainset:tf.data.Dataset, valset:tf.data.Dataset, testset:tf.data.Dataset,
-                model_path:str, file_name:str, epochs:int=10):
+                model_path:str, file_name:str, tensorboard_dir:str, epochs:int=10):
     """train the model and save it
 
     Args:
@@ -485,6 +486,7 @@ def train_model(model:tf.keras.Model,
         testset (tf.data.Dataset): the dataset used for testing
         model_path (str): the path where the model will be saved
         file_name (str): the name of model to be saved as file
+        tensorboard_dir (str): the directory where the tensorboard log will be saved
         epochs (int, optional): the number of iteration the training would be done. Defaults to 10.
 
     Returns:
@@ -505,10 +507,12 @@ def train_model(model:tf.keras.Model,
     history = model.fit(
         trainset.map(lambda x, y: add_sample_weight(x, y, weights)),
         validation_data=valset.map(lambda x, y: add_sample_weight(x, y, weights)),
-        epochs=epochs, callbacks=[AUCStoppingCallback(target_auc=.98)],
+        epochs=epochs, callbacks=[AUCStoppingCallback(target_auc=.98),
+                                    TensorBoard(log_dir=tensorboard_dir)],
         verbose=1)
     # save the model into .h5 file
     model.save(os.path.join(model_path, f"{file_name}.h5"))
+    # plot the model architecture
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
