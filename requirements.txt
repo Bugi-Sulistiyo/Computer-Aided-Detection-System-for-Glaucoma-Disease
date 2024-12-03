@@ -30,6 +30,10 @@ tf-clahe==0.1.0
 matplotlib==3.9.2
 pillow==11.0.0
 
+# visualize model architecture
+pydot==2.0.0
+# ===== Please make sure to install the graphviz before installing the pydot
+
 # modeling
 tensorflow==2.10.1
 
