@@ -2,6 +2,8 @@
 ## package for handling file and directory
 import os
 import shutil
+## package for restric param value
+from typing import Literal
 ## package for handling the image and mask
 import numpy as np
 ## package for handling the dataframe
@@ -26,6 +28,8 @@ from tensorflow.keras.metrics import AUC, Precision, Recall
 from tensorflow.keras.callbacks import Callback, TensorBoard
 ### predict requirement
 from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError, Huber
+### visualize model architecture
+from tensorflow.keras.utils import plot_model
 
 # Clear the session
 tf.keras.backend.clear_session()
@@ -366,7 +370,7 @@ def custom_unet(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list
     # Create the model
     return Model(input_layer, output_layer)
 
-def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32, 64]):
+def mobilenet_model(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
     """create a mobilenet model for semantic segmentation
 
     Args:
@@ -399,7 +403,7 @@ def mobilenet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32, 6
     # Create the model
     return Model(inputs=base_model.input, outputs=output_layer)
 
-def efficientnet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32, 64]):
+def efficientnet_model(input_shape:tuple=(128, 128, 3), num_classes:int=3, filters:list=[16, 32, 64]):
     """create a efficientnet model for semantic segmentation
 
     Args:
@@ -440,7 +444,7 @@ def efficientnet_model(input_shape=(128, 128, 3), num_classes=3, filters=[16, 32
     # Create the model
     return Model(inputs=base_model.input, outputs=output_layer)
 
-def mean_px_acc(y_true, y_pred):
+def mean_px_acc(y_true:tf.Tensor, y_pred:tf.Tensor):
     """a custom metric to calculate the mean pixel accuracy
 
     Args:
@@ -527,14 +531,55 @@ def custom_load_model(model_path:str):
     """
     return load_model(model_path, custom_objects={"mean_px_acc": mean_px_acc})
 
-def predict_model(testset:tf.data.Dataset, model_path:str, file_name:str="unet_custom",
+def visualize_model_architec(models_name:list, model_path:str, flow_dir:Literal["RL", "TB"]="TB",
+                            show_layer_names:bool=False, show_dtype:bool=False, show_shapes:bool=False):
+    """visuazlie model architectur. could only be run if graphviz is installed
+
+    Args:
+        models_name (list): a list of model name
+        model_path (str): the path where trained model is storeed
+        flow_dir (Literal["RL", "TB"], optional): the direction of plot. Defaults to "TB".
+        show_layer_names (bool, optional): include layer name or not. Defaults to False.
+        show_dtype (bool, optional): include layer type or not. Defaults to False.
+        show_shapes (bool, optional): include layer shape or not. Defaults to False.
+
+    Returns:
+        list: all image path that show model architecture
+    """
+    # initiate empty dict to store model
+    models = {}
+    # import all the model
+    for name in models_name:
+        models[name] = custom_load_model(os.path.join(model_path, f"{name}.h5"))
+    
+    # visualize the model architecture
+    for file_name, model in models.items():
+        plot_model(
+            model,
+            to_file=os.path.join(model_path, f"architec_{file_name}.png"),
+            dpi=300,
+            rankdir=flow_dir,
+            show_dtype=show_dtype,
+            show_layer_names=show_layer_names,
+            show_shapes=show_shapes
+        )
+    
+    # return the image path
+    return [os.path.join(model_path, f"architec_{file_path}.png") for file_path in models_name]
+
+def predict_model(testset:tf.data.Dataset, model_path:str,
+                file_name:Literal["efnet_model_aug", "efnet_model_ori",
+                                    "mnet_model_aug", "mnet_model_ori",
+                                    "unet_model_aug", "unet_model_ori"]="unet_model_ori",
                 batches:int=1, get_one:bool=True, bucket_choosed:int=0):
     """create the predicted mask by the model
 
     Args:
         testset (tf.data.Dataset): the dataset containing the image to predict the mask
         model_path (str): the path where the model is saved
-        file_name (str, optional): the model name saved as .h5 file. Defaults to "unet_custom".
+        file_name (Literal["efnet_model_aug", "efnet_model_ori",
+                            "mnet_model_aug", "mnet_model_ori",
+                            "unet_model_aug", "unet_model_ori], optional): the name of the model want to be used. Defaults to "unet_model_ori"
         batches (int, optional): the number of batches want to used. Defaults to 1.
         bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
         get_one (bool, optional): get one mask only. Defaults to True.
@@ -727,74 +772,111 @@ def calculate_area_CDR(cup_mask:np.array, disc_mask:np.array, bcup_mask:np.array
             "c_width": c_width}]
 
 def ev_cdr(model:tf.keras.Model, img_path:str, mask_path:str, threshold:float=.5, img_size:int=128, visualize:bool=False):
-    img = tf.io.read_file(img_path)
-    img = tf.image.decode_jpeg(img, channels=3)
-    img = tf.image.resize(img, (img_size, img_size), method='nearest')
-    img = tf.cast(img, tf.float32) / 255.
-    img = tf.expand_dims(img, axis=0)
+    """calculate the CDR value of the given image with the given model
 
+    Args:
+        model (tf.keras.Model): the model that will be used
+        img_path (str): the path of the test image
+        mask_path (str): the path of the mask image
+        threshold (float, optional): threshold define active pixel to make binary image. Defaults to .5.
+        img_size (int, optional): the size of image in rasio of 1:1. Defaults to 128.
+        visualize (bool, optional): also visualize the image or not. Defaults to False.
+
+    Returns:
+        dict: the CDR value
+    """
+    # preprocess and get the image
+    img = tf.io.read_file(img_path)                                         # read the image
+    img = tf.image.decode_jpeg(img, channels=3)                             # read the jpg file to readable type
+    img = tf.image.resize(img, (img_size, img_size), method='nearest')      # change the image size
+    img = tf.cast(img, tf.float32) / 255.                                   # normalize the image
+    img = tf.expand_dims(img, axis=0)                                       # change the shape of the image to simulate batch dataset
+
+    # predict the image
     pred_mask = model.predict(img, verbose=0)
 
+    # split the mask image to a binary mask image
     cup_mask = tf.where(pred_mask[..., 1] > threshold, 1, 0)
     disc_mask = tf.where(pred_mask[..., 2] > threshold, 1, 0)
 
+    # create a bounding box for each binary image (will get the coordinate)
     cup_bbox = regionprops(label(cup_mask.numpy())[0])[0].bbox
     disc_bbox = regionprops(label(disc_mask.numpy())[0])[0].bbox
 
+    # calculate the size of bounding box
     cup_width = cup_bbox[3] - cup_bbox[1]
     cup_height = cup_bbox[2] - cup_bbox[0]
     disc_width = disc_bbox[3] - disc_bbox[1]
     disc_height = disc_bbox[2] - disc_bbox[0]
 
+    # visualize the result
     if visualize:
         plt.figure(figsize=(10, 10))
 
+        # show the original mask of the given fundus image
         plt.subplot(2,2, 1)
-        plt.imshow(plt.imread(mask_path), cmap="gray")
+        plt.imshow(plt.imread(mask_path), cmap="gray")                      # show image
         plt.title("Original Mask")
         plt.axis("off")
 
+        # show the predicted mask with bounding box on it
         plt.subplot(2,2, 2)
-        plt.imshow(tf.argmax(pred_mask, axis=-1)[0], cmap="gray")
-        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+        plt.imshow(tf.argmax(pred_mask, axis=-1)[0], cmap="gray")           # show image
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),       # show bounding box of cup
                                         cup_width, cup_height,
                                         edgecolor='r', facecolor='none'))
-        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),     # show bounding box of disc
                                         disc_width, disc_height,
                                         edgecolor='c', facecolor='none'))
         plt.title("Predicted Mask")
         plt.axis("off")
 
+        # show the cup binary mask with bounding box on it
         plt.subplot(2, 2, 3)
-        plt.imshow(cup_mask[0], cmap="gray")
-        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),
+        plt.imshow(cup_mask[0], cmap="gray")                                # show image
+        plt.gca().add_patch(plt.Rectangle((cup_bbox[1], cup_bbox[0]),       # show bounding box
                                         cup_width, cup_height,
                                         edgecolor='r', facecolor='none'))
         plt.title("Cup Mask")
         plt.axis("off")
 
+        # show the disc binary mask with bounding box on it
         plt.subplot(2, 2, 4)
-        plt.imshow(disc_mask[0], cmap="gray")
-        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),
+        plt.imshow(disc_mask[0], cmap="gray")                               # show image
+        plt.gca().add_patch(plt.Rectangle((disc_bbox[1], disc_bbox[0]),     # show bounding box
                                         disc_width, disc_height,
                                         edgecolor='c', facecolor='none'))
         plt.title("Disc Mask")
         plt.axis("off")
         plt.show()
     
-    return {"area_cdr": np.sum(cup_mask) / np.sum(np.logical_or(disc_mask, cup_mask)),
-            "horizontal_cdr": cup_width / disc_width,
-            "vertical_cdr": cup_height / disc_height}
+    # calculate the CDR value
+    return {"area_cdr": np.sum(cup_mask) / np.sum(np.logical_or(disc_mask, cup_mask)),  # area CDR
+            "horizontal_cdr": cup_width / disc_width,                                   # horizontal CDR
+            "vertical_cdr": cup_height / disc_height}                                   # vertical CDR
 
 def count_loss_cdr(dts_cdr:pd.core.series.Series, pred_cdr:pd.core.series.Series):
+    """count the loss value of predicted CDR and dataset CDR
+
+    Args:
+        dts_cdr (pd.core.series.Series): the dataset CDR data
+        pred_cdr (pd.core.series.Series): the predicetd CDR data
+
+    Returns:
+        disct: the regression loss value
+    """
+    # remove the added id part
     dts_cdr.id = dts_cdr.id.apply(lambda x: x.replace("_mask", ""))
     pred_cdr.id = pred_cdr.id.apply(lambda x: x.replace("_aug", ""))
+    # join the the two data using inner join
     cdr_evalution = dts_cdr.merge(pred_cdr, on="id", suffixes=("_true", "_pred"))
 
+    # initiate the loss function
     mse = MeanSquaredError()
     mae = MeanAbsoluteError()
     huber = Huber()
 
+    # calculate the loss value for each CDR value
     return {"a_mse": mse(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
             "a_mae": mae(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
             "a_huber": huber(cdr_evalution.a_cdr_true, cdr_evalution.a_cdr_pred).numpy(),
