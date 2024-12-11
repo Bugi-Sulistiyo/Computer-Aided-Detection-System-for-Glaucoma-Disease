@@ -516,7 +516,6 @@ def train_model(model:tf.keras.Model,
         verbose=1)
     # save the model into .h5 file
     model.save(os.path.join(model_path, f"{file_name}.h5"))
-    # plot the model architecture
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
