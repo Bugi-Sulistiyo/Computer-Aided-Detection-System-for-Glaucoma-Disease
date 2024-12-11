@@ -5,6 +5,7 @@ dataset_hf/
 wandb/
 __pycache__/
 manual_download/
+3. Paper_needs/
 
 # other files
 .env
