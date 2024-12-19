@@ -2,7 +2,8 @@
 A Research of glaucoma detection using semantic segmentation. The dataset used are fundus image and OCT image taken from one of Hospital in Samarinda. The dataset consist of fundus images labelled as glaucoma and non-glaucoma and is scanned from both patient eye.
 
 ## Confidentiality
-The dataset being used is confidential because of it's medical properties. The data information of each sample is embedded into the name of the files. Also in order to download the dataset, the direct use of storage link is avoided. To handle this condition, the .env file is used to store all the confidential information that needed to be used on the scripts.
+The dataset being used is confidential because of it's medical properties. The data information of each sample is embedded into the name of the files. Also in order to download the dataset, the direct use of storage link is avoided. To handle this condition, the .env file is used to store all the confidential information that needed to be used on the scripts. <br>
+The processed dataset could be accesed on Hugging Face Hub on this link: [huggingface.co/datasets/bugi-sulistiyo/glaucoma-detection-for-segmentation](https://huggingface.co/datasets/bugi-sulistiyo/glaucoma-detection-for-segmentation).
 
 ## Methods and Tools Used
 - Segmentation
@@ -17,13 +18,16 @@ The dataset being used is confidential because of it's medical properties. The d
   - Evaluation Metrics
     - Train and Evalution Model
       - AUC
-      - Precision
-      - Recall
+      - F1-Score
       - Mean px Accuracy
     - Segmentation Model
       - Huber
       - MSE
       - MAE
+    - Classification Result
+      - AUC
+      - F1-Score
+      - Accuracy
 
 ## How to Replicate the Project
 There are several things to do before the script could be run. Also, in order to replicate the project, the script should be runned in specific order (alphabetical or numerical). Inside the `scripts` folder, there are guides to help in form of markdown.
