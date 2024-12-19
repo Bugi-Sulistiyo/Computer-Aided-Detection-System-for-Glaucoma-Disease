@@ -33,6 +33,7 @@ In order for Tensorflow use GPU when training or inference, it recommended to us
 To make there's no error caused by path and the keep the confidentiality of the dataset, the `.env` file is used. there are two variables in it such as:
 - DATASET_GDRIVE_LINK → store the dataset link
 - ORI_PATH → store the full path of where the project is stored
+- RUN_ID → [optional] store the wandb id to collect the training log data without retrain the model
 
 ## Contributor
 * Bugi Sulistiyo
