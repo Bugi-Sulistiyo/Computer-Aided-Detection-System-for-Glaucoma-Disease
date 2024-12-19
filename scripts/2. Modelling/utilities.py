@@ -519,6 +519,7 @@ def train_model(model:tf.keras.Model,
     #  test the model with testset and getting the loss and accuracy values
     return model, history, model.evaluate(testset, verbose=0)
 
+# function for evaluation
 def custom_load_model(model_path:str):
     """load the model with custom metric
 
