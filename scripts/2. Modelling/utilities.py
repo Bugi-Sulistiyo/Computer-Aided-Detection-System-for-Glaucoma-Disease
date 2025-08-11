@@ -599,13 +599,14 @@ def predict_model(testset:tf.data.Dataset, model_path:str,
         pred_mask.append(model.predict(images))
     return pred_mask, model
 
-def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
+def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13, visualize:bool=True):
     """split the disc and cup section from the predicted mask
 
     Args:
         pred_mask (tf.Tensor): the predicted mask from model
         treshold (float, optional): the treshold used to make mask as binary. Defaults to 0.1.
         img_idx (int, optional): the index of mask that want to be visualized. Defaults to 13.
+        visualize (bool, optional): whether to visualize the result or not. Defaults to True.
 
     Returns:
         tf.Tensor: the result of the splitted mask based on the label
@@ -617,6 +618,9 @@ def split_disc_cup_mask(pred_mask, treshold:float=0.1, img_idx:int=13):
     # transform the mask image into a binary mask image
     binary_cup_mask = tf.where(cup_mask > treshold, 1, 0)
     binary_disc_mask = tf.where(disc_mask > treshold, 1, 0)
+
+    if not visualize:
+        return cup_mask, disc_mask, binary_cup_mask, binary_disc_mask
 
     # show the predicted mask image directly
     plt.figure(figsize=(10,10))
