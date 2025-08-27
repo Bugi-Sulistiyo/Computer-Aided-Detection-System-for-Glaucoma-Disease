@@ -13,6 +13,7 @@ path_full = os.environ.get("ORI_PATH")
 path_docs = os.path.join(path_full, "data")
 path_dataset = os.path.join(path_full, "datasets")
 path_download = os.path.join(path_full, "manual_download")
+path_huggingface = os.path.join(path_full, "dataset_hf")
 
 # heading 2 of path. storing the breakdown of submain path
 path_dataset_cleaned = os.path.join(path_dataset, "cleaned")
