@@ -20,6 +20,7 @@ path_dataset_cleaned = os.path.join(path_dataset, "cleaned")
 path_dataset_origin = os.path.join(path_dataset, "original_source")
 path_dataset_preprocessed = os.path.join(path_dataset, "preprocessed")
 path_dataset_splitted = os.path.join(path_dataset, "splitted")
+
 path_zip_annot = os.path.join(path_download, "zipped_files_annotation")
 path_zip_mask = os.path.join(path_download, "zipped_files_mask")
 
@@ -30,8 +31,12 @@ path_src_imgs = os.path.join(path_dataset_preprocessed, "fundus_image")
 path_clean_aug = os.path.join(path_dataset_cleaned, "aug_image")
 path_clean_fundus = os.path.join(path_dataset_cleaned, "fundus_image")
 path_clean_mask = os.path.join(path_dataset_cleaned, "mask_image")
+
 path_prep_annot_img = os.path.join(path_dataset_preprocessed, "annot_image")
 path_prep_annot_target = os.path.join(path_dataset_preprocessed, "annotations")
 path_prep_fundus = os.path.join(path_dataset_preprocessed, "fundus_image")
 path_prep_mask = os.path.join(path_dataset_preprocessed, "mask_image")
 path_prep_oct = os.path.join(path_dataset_preprocessed, "oct_image")
+
+path_split_origin = os.path.join(path_dataset_splitted, "original")
+path_split_augment = os.path.join(path_dataset_splitted, "augmented")
