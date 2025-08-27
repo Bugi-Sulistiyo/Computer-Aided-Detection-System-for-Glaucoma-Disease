@@ -16,6 +16,9 @@ path_download = os.path.join(path_full, "manual_download")
 path_huggingface = os.path.join(path_full, "dataset_hf")
 
 # heading 2 of path. storing the breakdown of submain path
+path_model = os.path.join(path_docs, "model")
+path_log_tensor = os.path.join(path_docs, "logs")
+
 path_dataset_cleaned = os.path.join(path_dataset, "cleaned")
 path_dataset_origin = os.path.join(path_dataset, "original_source")
 path_dataset_preprocessed = os.path.join(path_dataset, "preprocessed")
