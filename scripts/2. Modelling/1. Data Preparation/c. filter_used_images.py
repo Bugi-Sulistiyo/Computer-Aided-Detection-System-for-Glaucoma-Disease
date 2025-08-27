@@ -6,10 +6,7 @@ import os                       # handling file operation basic
 import shutil                   # handling file operation for copying and removing
 import json                     # handling json file
 import pandas as pd             # handling dataframe for tabular data
-from dotenv import load_dotenv  # handling env variable file
 import paths                    # handling paths
-# importing the variable environment
-load_dotenv()
 
 # Global Variables
 classes = os.listdir(paths.path_prep_fundus)

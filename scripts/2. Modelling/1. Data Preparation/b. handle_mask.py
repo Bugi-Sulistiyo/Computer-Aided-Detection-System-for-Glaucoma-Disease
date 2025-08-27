@@ -6,10 +6,7 @@ sys.path.insert(0, "./../../utilities")
 import os                       # handling file for basic operation
 import shutil                   # handling file for duplication
 import zipfile as zf            # handling the zipped file
-from dotenv import load_dotenv  # handling env file
 import paths                    # handling the path
-# import all the env variable
-load_dotenv()
 
 # Initialize the global variables
 classes = ["glaucoma", "non_glaucoma"]

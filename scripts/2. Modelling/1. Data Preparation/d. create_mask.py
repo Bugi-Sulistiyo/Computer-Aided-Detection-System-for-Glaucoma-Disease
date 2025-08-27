@@ -7,10 +7,7 @@ import numpy as np              # handling image as array
 import cv2                      # handling image for filling edge
 from PIL import Image           # handling image for saving
 import json                     # handling json file for annotation
-from dotenv import load_dotenv  # handling env variable file
 import paths                    # handling the path variables
-# importing the variable environment
-load_dotenv()
 
 # Global Variables
 classes = ["glaucoma", "non_glaucoma"]
