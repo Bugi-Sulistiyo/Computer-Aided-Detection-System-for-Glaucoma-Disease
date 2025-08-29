@@ -1,7 +1,7 @@
 # Import the necessary package
 import sys                      # handling system arguments
 # add path to utilities directory
-sys.path.insert(0, "./../../utilities")
+sys.path.insert(0, "./../../")
 
 import os                       # handling file for basic operation
 import shutil                   # handling file for duplication

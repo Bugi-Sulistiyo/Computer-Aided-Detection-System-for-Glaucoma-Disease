@@ -1,7 +1,7 @@
 # Import the needed package
 import sys                      # handling file system
 # add path to utilities directory
-sys.path.insert(0, "./../../utilities")
+sys.path.insert(0, "./../../")
 import os                       # handling file and directory
 import numpy as np              # handling image as array
 import cv2                      # handling image for filling edge

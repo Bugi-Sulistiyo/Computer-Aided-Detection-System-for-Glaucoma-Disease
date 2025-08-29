@@ -1,7 +1,7 @@
 # Import the needed package
 import sys                      # handling system arguments
 # add path to utilities directory
-sys.path.insert(0, "./../../utilities")
+sys.path.insert(0, "./../../")
 import os                       # handling file operation basic
 import shutil                   # handling file operation for copying and removing
 import json                     # handling json file
