@@ -1,5 +1,7 @@
 import os
 import matplotlib.pyplot as plt
+import tensorflow as tf
+import numpy as np
 from typing import Literal
 from tensorflow.keras.utils import plot_model
 from .modeling_utils import custom_load_model
