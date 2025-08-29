@@ -6,3 +6,6 @@ from .modeling_utils import *
 from .mask_cdr_utils import *
 from .evaluate_utils import *
 from .viz_utils import *
+
+# Clear the session
+tf.keras.backend.clear_session()
