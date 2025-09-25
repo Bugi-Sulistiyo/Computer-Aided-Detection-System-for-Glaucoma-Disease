@@ -3,6 +3,7 @@ from skimage.measure import label, regionprops
 import matplotlib.pyplot as plt
 import numpy as np
 from tensorflow.keras.losses import MeanSquaredError, MeanAbsoluteError, Huber
+from tensorflow.keras.metrics import Accuracy, Precision, Recall
 import pandas as pd
 
 def ev_cdr(model:tf.keras.Model, img_path:str, mask_path:str, threshold:float=.5, img_size:int=128, visualize:bool=False):
@@ -120,3 +121,29 @@ def count_loss_cdr(dts_cdr:pd.core.series.Series, pred_cdr:pd.core.series.Series
             "v_mse": mse(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy(),
             "v_mae": mae(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy(),
             "v_huber": huber(cdr_evalution.v_cdr_true, cdr_evalution.v_cdr_pred).numpy()}
+
+def evaluate_eye_side(pred_label:list, real_label:list, label_map:dict=None):
+    if label_map is None:
+        unique = sorted(set(pred_label) | set(real_label))
+        label_map = {k: i for i, k in enumerate(unique)}
+    
+    pred_label_int = [label_map[x] for x in pred_label]
+    real_label_int = [label_map[x] for x in real_label]
+    
+    pred_label_int = tf.constant(pred_label_int)
+    real_label_int = tf.constant(real_label_int)
+
+    acc = Accuracy(); prec = Precision(); rec = Recall()
+
+    acc.update_state(pred_label_int, real_label_int)
+    prec.update_state(pred_label_int, real_label_int)
+    rec.update_state(pred_label_int, real_label_int)
+
+    f1 = 2 * (prec.result().numpy() * rec.result().numpy()) / (prec.result().numpy() + rec.result().numpy() + 1e-7)
+
+    return {
+        "accuracy": float(acc.result().numpy()),
+        "precision": float(prec.result().numpy()),
+        "recall": float(rec.result().numpy()),
+        "f1": float(f1),
+    }
