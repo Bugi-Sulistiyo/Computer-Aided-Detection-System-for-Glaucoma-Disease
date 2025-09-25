@@ -6,14 +6,17 @@ def largest_region(mask):
     props = regionprops(label(mask))
     return max(props, key=lambda p: p.area) if props else None
 
-def split_eyeside(dataset:tf.data.Dataset, binary_cup_mask:tf.Tensor, binary_disc_mask:tf.Tensor):
+def split_eyeside(dataset:tf.data.Dataset, model:tf.keras.Model, treshold:float=.5):
     
     result = []
     side_map = {"l": "left", "r": "right"}
     idx_across_batches = 0 # global index across batches
 
     for images, _, img_paths in dataset:
+        # predick a mask image
+        pred_mask = model.predict(images, verbose=0)
         batch_size = images.shape[0]
+
         # loop over the batch
         for index in range(batch_size):
             # filenames & labels
@@ -21,9 +24,10 @@ def split_eyeside(dataset:tf.data.Dataset, binary_cup_mask:tf.Tensor, binary_dis
             file_name = path_str.split("\\")[-1]
             real_label = side_map.get(file_name.split("_")[3], "unknown")
             # mask & images
-            cup = binary_cup_mask[index].numpy()
-            disc = binary_disc_mask[index].numpy()
+            cup_mask = (pred_mask[index, ..., 1] > treshold).astype("uint8")
+            disc_mask = (pred_mask[index, ..., 2] > treshold).astype("uint8")
             img = images[index].numpy()
+
             # base entry
             entry = {
                 "file_name": file_name,
@@ -36,8 +40,8 @@ def split_eyeside(dataset:tf.data.Dataset, binary_cup_mask:tf.Tensor, binary_dis
             }
 
             # --- bounding boxes ---
-            cup_props = largest_region(cup)
-            disc_props = largest_region(disc)
+            cup_props = largest_region(cup_mask)
+            disc_props = largest_region(disc_mask)
 
             if not cup_props or not disc_props:
                 result.append(entry)
