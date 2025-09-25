@@ -97,7 +97,8 @@ def predict_model(testset:tf.data.Dataset, model_path:str,
                 file_name:Literal["efnet_model_aug", "efnet_model_ori",
                                     "mnet_model_aug", "mnet_model_ori",
                                     "unet_model_aug", "unet_model_ori"]="unet_model_ori",
-                batches:int=1, get_one:bool=True, bucket_choosed:int=0):
+                batches:int=1, get_one:bool=True, bucket_choosed:int=0,
+                path_img:bool=False):
     """create the predicted mask by the model
 
     Args:
@@ -109,18 +110,31 @@ def predict_model(testset:tf.data.Dataset, model_path:str,
         batches (int, optional): the number of batches want to used. Defaults to 1.
         bucket_choosed (int, optional): the index of batches wanted. Defaults to 0.
         get_one (bool, optional): get one mask only. Defaults to True.
+        path_img (bool, optonal): wether to the data have path_img or not
 
     Returns:
         list=[tf.Tensor], tf.keras.Model: the predicted mask from the model, the model
     """
     pred_mask = []
+    path_label = []
     # load the saved model
     model = custom_load_model(os.path.join(model_path, f"{file_name}.h5"))
     # extract the image from the dataset
-    for bucket_num, (images, _) in enumerate(testset.take(batches)):
-        if bucket_num == bucket_choosed and get_one:
-            pred_mask = model.predict(images)
-            break
-        # predict the masks from the given images
-        pred_mask.append(model.predict(images))
-    return pred_mask, model
+    if path_img:
+        for bucket_num, (images, _, path_img) in enumerate(testset.take(batches)):
+            if bucket_num == bucket_choosed and get_one:
+                pred_mask = model.predict(images)
+                path_label = path_img
+                break
+            # predict the masks from the given images
+            pred_mask.append(model.predict(images))
+            path_label.append(path_img)
+        return pred_mask, model, path_label
+    else:
+        for bucket_num, (images, _) in enumerate(testset.take(batches)):
+            if bucket_num == bucket_choosed and get_one:
+                pred_mask = model.predict(images)
+                break
+            # predict the masks from the given images
+            pred_mask.append(model.predict(images))
+        return pred_mask, model

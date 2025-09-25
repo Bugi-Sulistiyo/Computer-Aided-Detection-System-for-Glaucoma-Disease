@@ -87,16 +87,17 @@ def remap_mask(mask:tf.Tensor):
     mask = tf.where(mask ==255, 2, mask) # change the disc value into 2
     return mask
 
-def load_image(img_path:str, mask_path:str, img_size:int=128):
+def load_image(img_path:str, mask_path:str, img_size:int=128, return_path:bool=False):
     """load and preprocess image and mask
 
     Args:
         img_path (str): the path of the image
         mask_path (str): the path of the mask
         img_size (int, optional): the resolution of img 1:1. Defaults to 128.
+        return_path (bool, optional): wether to return image path or not
 
     Returns:
-        tf.Tensor: image and mask
+        tuple: (image, mask, filename)
     """
     # import and standardize the image
     img = tf.io.read_file(img_path)                                     # read the image file
@@ -115,9 +116,12 @@ def load_image(img_path:str, mask_path:str, img_size:int=128):
     mask = tf.one_hot(tf.squeeze(mask), depth=3)
     mask = tf.cast(mask, tf.int32)
 
+    # return value
+    if return_path:
+        return img, mask, img_path
     return img, mask
 
-def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size:int=16):
+def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size:int=16, return_path:bool=False):
     """create a tf.data.Dataset from image and mask paths
 
     Args:
@@ -125,6 +129,7 @@ def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size
         mask_paths (list): a list of mask paths
         img_size (int, optional): the resolution of img 1:1. Defaults to 128.
         batch_size (int, optional): the size of batches. Defaults to 16.
+        return_path (bool, optional): wether to return the path or not
 
     Returns:
         tf.data.Dataset: the batched dataset
@@ -132,7 +137,7 @@ def create_dataset(img_paths:list, mask_paths:list, img_size:int=128, batch_size
     # create a dataset from the image and mask paths
     dataset = tf.data.Dataset.from_tensor_slices((img_paths, mask_paths))
     # standardize the image and mask
-    dataset = dataset.map(lambda x, y: load_image(x, y, img_size), num_parallel_calls=tf.data.AUTOTUNE)
+    dataset = dataset.map(lambda x, y: load_image(x, y, img_size, return_path), num_parallel_calls=tf.data.AUTOTUNE)
     # shuffle the dataset into a random order
     dataset = dataset.shuffle(512)
     # shuffle the dataset into a random order and make it a batch
