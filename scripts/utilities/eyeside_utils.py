@@ -1,9 +1,20 @@
 import tensorflow as tf
+import numpy as np
 from skimage.measure import label, regionprops
 import matplotlib.pyplot as plt
 
-def largest_region(mask):
+def largest_region(mask:np.ndarray):
+    """Get the largest region from a mask
+
+    Args:
+        mask (np.ndarray): The mask to get the largest region from
+
+    Returns:
+        RegionProperties: The largest region from the mask
+    """
+    # compute the label of the mask
     props = regionprops(label(mask))
+    # return the largest region
     return max(props, key=lambda p: p.area) if props else None
 
 def split_eyeside(dataset:tf.data.Dataset, model:tf.keras.Model, treshold:float=.5):
